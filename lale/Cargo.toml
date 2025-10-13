@@ -1,0 +1,22 @@
+[package]
+name = "lale"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lale"
+path = "src/main.rs"
+
+[dependencies]
+llvm-ir.workspace = true
+petgraph.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+good_lp.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+ahash.workspace = true

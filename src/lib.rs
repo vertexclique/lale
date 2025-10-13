@@ -9,17 +9,31 @@ pub mod wcet;
 pub use analysis::{Cycles, IPETSolver, LoopAnalyzer, TimingCalculator};
 pub use ir::{CallGraph, IRParser, CFG};
 pub use output::{AnalysisReport, GanttOutput, GraphvizOutput, JSONOutput};
-pub use platform::{CortexM4Model, PlatformModel};
+pub use platform::{
+    CortexM0Model, CortexM3Model, CortexM4Model, CortexM7Model, CortexM33Model,
+    CortexR4Model, CortexR5Model, CortexA7Model, CortexA53Model,
+    RV32IModel, RV32IMACModel, RV32GCModel, RV64GCModel,
+    PlatformModel,
+};
 pub use scheduling::{
     EDFScheduler, RMAScheduler, SchedulabilityResult, StaticScheduleGenerator, Task, TaskExtractor,
 };
+
+/// Scheduling policy selection
+#[derive(Debug, Clone, Copy)]
+pub enum SchedulingPolicy {
+    /// Rate Monotonic Analysis
+    RMA,
+    /// Earliest Deadline First
+    EDF,
+}
 
 /// LALE version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Complete WCET analysis pipeline
 pub struct WCETAnalyzer {
-    platform: PlatformModel,
+    pub platform: PlatformModel,
 }
 
 impl WCETAnalyzer {
@@ -57,6 +71,58 @@ impl WCETAnalyzer {
         }
 
         results
+    }
+
+    /// Complete analysis pipeline: WCET + Schedulability + Schedule generation
+    /// Returns JSON string with complete analysis report including reusable schedule
+    pub fn analyze_and_export_schedule(
+        &self,
+        module: &llvm_ir::Module,
+        tasks: Vec<Task>,
+        scheduling_policy: SchedulingPolicy,
+    ) -> anyhow::Result<String> {
+        // 1. Analyze WCET for all functions
+        let wcet_results = self.analyze_module(module);
+
+        // 2. Perform schedulability analysis
+        let schedulability = match scheduling_policy {
+            SchedulingPolicy::RMA => RMAScheduler::schedulability_test(&tasks),
+            SchedulingPolicy::EDF => EDFScheduler::schedulability_test(&tasks),
+        };
+
+        // 3. Generate static schedule if schedulable
+        let schedule = match schedulability {
+            SchedulabilityResult::Schedulable => {
+                Some(StaticScheduleGenerator::generate_schedule(&tasks))
+            }
+            _ => None,
+        };
+
+        // 4. Generate JSON report
+        let report = JSONOutput::generate_report(
+            &wcet_results,
+            &tasks,
+            &schedulability,
+            schedule,
+            &self.platform.name,
+            self.platform.cpu_frequency_mhz,
+        );
+
+        // 5. Export to JSON string
+        JSONOutput::to_json(&report).map_err(|e| e.into())
+    }
+
+    /// Export analysis report to JSON file
+    pub fn export_to_file(
+        &self,
+        module: &llvm_ir::Module,
+        tasks: Vec<Task>,
+        scheduling_policy: SchedulingPolicy,
+        output_path: &str,
+    ) -> anyhow::Result<()> {
+        let json = self.analyze_and_export_schedule(module, tasks, scheduling_policy)?;
+        std::fs::write(output_path, json)?;
+        Ok(())
     }
 }
 

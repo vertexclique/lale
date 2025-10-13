@@ -35,6 +35,9 @@ impl IPETSolver {
         // Step 3: Start building problem with constraints
         let mut problem = vars.maximise(objective.clone()).using(default_solver);
 
+        // Suppress output. Carry me back home.
+        problem.set_parameter("loglevel", "0");
+
         // Constraint: Entry block executes exactly once
         problem = problem.with(constraint!(block_vars[&cfg.entry] == 1));
 
@@ -111,6 +114,7 @@ impl IPETSolver {
             .sum();
 
         let mut problem = vars.maximise(objective).using(default_solver);
+        problem.set_parameter("loglevel", "0");
         problem = problem.with(constraint!(block_vars[&cfg.entry] == 1));
 
         for node in cfg.graph.node_indices() {

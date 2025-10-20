@@ -7,8 +7,8 @@ export default function TicketList() {
   return (
     <div>
       <PageMeta
-        title="React.js  Ticket List Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js  Ticket List Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js  Ticket List Dashboard | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js  Ticket List Dashboard page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Support Ticket" />
       <SupportMetrics />

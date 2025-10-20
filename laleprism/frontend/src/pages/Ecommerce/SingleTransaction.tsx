@@ -9,8 +9,8 @@ export default function SingleTransaction() {
   return (
     <>
       <PageMeta
-        title="React.js E-commerce Single Transaction  | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js E-commerce Single Transaction  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js E-commerce Single Transaction  | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js E-commerce Single Transaction  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Single Transaction" />
       <div className="space-y-6">

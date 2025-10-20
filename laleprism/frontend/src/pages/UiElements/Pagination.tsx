@@ -6,8 +6,8 @@ export default function Pagination() {
   return (
     <div>
       <PageMeta
-        title="React.js  Pagination | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Pagination  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js  Pagination | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Pagination  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Pagination" />
       <PaginationExample />

@@ -9,8 +9,8 @@ export default function PricingTables() {
   return (
     <div>
       <PageMeta
-        title="React.js Pricing Tables Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Pricing Tables page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Pricing Tables Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Pricing Tables page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Pricing Tables" />
       <div className="space-y-5 sm:space-y-6">

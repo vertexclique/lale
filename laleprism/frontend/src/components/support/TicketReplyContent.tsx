@@ -91,17 +91,17 @@ export default function TicketReplyContent() {
             </div>
             <div className="pb-6">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Hi TailAdmin Team,
+                Hi LALE Prism Team,
               </p>
               <p className="mb-5 text-sm text-gray-500 dark:text-gray-400">
                 I hope you're doing well.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                I’m currently working on customizing the TailAdmin dashboard and
+                I’m currently working on customizing the LALE Prism dashboard and
                 would like to add a new section labeled “Reports.” Before I
                 proceed, I wanted to check if there’s any official guide or best
                 practice you recommend for adding custom pages within the
-                TailAdmin structure.
+                LALE Prism structure.
               </p>
             </div>
           </article>
@@ -118,7 +118,7 @@ export default function TicketReplyContent() {
                     Musharof Chowdhury
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    From - tailadmin support team
+                    From - support team
                   </p>
                 </div>
               </div>
@@ -134,7 +134,7 @@ export default function TicketReplyContent() {
               </p>
               <p className="mb-5 text-sm text-gray-500 dark:text-gray-400">
                 Thanks for reaching out—and great to hear you're customizing
-                TailAdmin to fit your needs! Yes, you can definitely add custom
+                LALE Prism to fit your needs! Yes, you can definitely add custom
                 pages like a “Reports” section, and it’s quite straightforward.
                 Here’s a quick guide to help you get started:
               </p>
@@ -177,17 +177,17 @@ export default function TicketReplyContent() {
             </div>
             <div className="pb-6">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Hi TailAdmin Team,
+                Hi LALE Prism Team,
               </p>
               <p className="mb-5 text-sm text-gray-500 dark:text-gray-400">
                 I hope you're doing well.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                I’m currently working on customizing the TailAdmin dashboard and
+                I’m currently working on customizing the LALE Prism dashboard and
                 would like to add a new section labeled “Reports.” Before I
                 proceed, I wanted to check if there’s any official guide or best
                 practice you recommend for adding custom pages within the
-                TailAdmin structure.
+                LALE Prism structure.
               </p>
             </div>
           </article>

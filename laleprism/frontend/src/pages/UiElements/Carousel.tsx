@@ -10,8 +10,8 @@ export default function Carousel() {
   return (
     <>
       <PageMeta
-        title="React.js Carousel Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Carousel Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Carousel Dashboard | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Carousel Dashboard page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Carousel" />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 xl:gap-6">

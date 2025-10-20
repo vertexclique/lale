@@ -8,8 +8,8 @@ export default function PieChart() {
   return (
     <div>
       <PageMeta
-        title="React.js Chart Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Chart Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Chart Dashboard | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Chart Dashboard page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Pie Chart" />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

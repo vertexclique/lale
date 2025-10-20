@@ -137,7 +137,7 @@ export default function FaqsThree() {
 
             <div>
               <h4 className="mb-3 text-lg font-medium text-gray-800 dark:text-white/90">
-                Can I Customize TailAdmin to suit my needs?
+                Can I Customize LALE Prism to suit my needs?
               </h4>
 
               <p className="text-base text-gray-500 dark:text-gray-400">

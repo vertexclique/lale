@@ -91,8 +91,8 @@ export default function Integrations() {
   return (
     <div>
       <PageMeta
-        title="React.js Integrations Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Support Integrations Page  for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Integrations Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Support Integrations Page  for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <IntegrationBreadcrumb pageTitle="Integrations" />
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">

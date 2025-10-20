@@ -64,7 +64,7 @@ export default function ApiKeyTable() {
             API Keys
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            API keys are used to authentication requests to the tailadmin API
+            API keys are used to authenticate requests to the LALE API
           </p>
         </div>
         <div>

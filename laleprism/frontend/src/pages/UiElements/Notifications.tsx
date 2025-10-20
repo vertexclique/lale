@@ -29,8 +29,8 @@ export default function Notifications() {
   return (
     <>
       <PageMeta
-        title="React.js  Notifications | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Notifications  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js  Notifications | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Notifications  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Notifications" />
       <div className="space-y-5 sm:space-y-6">

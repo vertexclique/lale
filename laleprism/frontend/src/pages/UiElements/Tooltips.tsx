@@ -6,8 +6,8 @@ export default function Tooltips() {
   return (
     <div>
       <PageMeta
-        title="React.js Tooltips Tabs | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Tabs  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Tooltips Tabs | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Tabs  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Tooltips" />
       <TooltipExample />

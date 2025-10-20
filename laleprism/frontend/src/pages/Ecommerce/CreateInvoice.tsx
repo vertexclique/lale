@@ -11,8 +11,8 @@ export default function CreateInvoice() {
   return (
     <>
       <PageMeta
-        title="React.js  E-commerce Create Invoice | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js E-commerce Create Invoice  for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js  E-commerce Create Invoice | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js E-commerce Create Invoice  for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Create Invoice" />
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

@@ -9,8 +9,8 @@ export default function Faqs() {
   return (
     <>
       <PageMeta
-        title="React.js FAQ Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js FAQ Page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js FAQ Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js FAQ Page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Faqs" />
       <div className="space-y-5 sm:space-y-6">

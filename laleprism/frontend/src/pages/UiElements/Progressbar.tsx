@@ -6,8 +6,8 @@ export default function Progressbar() {
   return (
     <>
       <PageMeta
-        title="React.js List Progressbar | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Popover page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js List Progressbar | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Popover page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Progressbar" />
       <ProgressBarExample />

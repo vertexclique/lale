@@ -75,7 +75,7 @@ export default function TopPages() {
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
           <span className="text-gray-500 text-theme-sm dark:text-gray-400">
-            tailadmin.com
+            lale.bot
           </span>
           <span className="text-right text-gray-500 text-theme-sm dark:text-gray-400">
             4.7K
@@ -84,7 +84,7 @@ export default function TopPages() {
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
           <span className="text-gray-500 text-theme-sm dark:text-gray-400">
-            preview.tailadmin.com
+            preview.lale.bot
           </span>
           <span className="text-right text-gray-500 text-theme-sm dark:text-gray-400">
             3.4K
@@ -93,7 +93,7 @@ export default function TopPages() {
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
           <span className="text-gray-500 text-theme-sm dark:text-gray-400">
-            docs.tailadmin.com
+            docs.lale.bot
           </span>
           <span className="text-right text-gray-500 text-theme-sm dark:text-gray-400">
             2.9K
@@ -102,7 +102,7 @@ export default function TopPages() {
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
           <span className="text-gray-500 text-theme-sm dark:text-gray-400">
-            tailadmin.com/componetns
+            lale.bot/componetns
           </span>
           <span className="text-right text-gray-500 text-theme-sm dark:text-gray-400">
             1.5K

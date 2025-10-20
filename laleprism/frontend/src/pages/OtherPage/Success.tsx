@@ -6,8 +6,8 @@ export default function Success() {
   return (
     <>
       <PageMeta
-        title="React.js Success Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Success page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Success Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Success page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
         <GridShape />
@@ -43,7 +43,7 @@ export default function Success() {
         </div>
         {/* <!-- Footer --> */}
         <p className="absolute text-sm text-center text-gray-500 -translate-x-1/2 bottom-6 left-1/2 dark:text-gray-400">
-          &copy; {new Date().getFullYear()} - TailAdmin
+          &copy; {new Date().getFullYear()} - LALE Prism
         </p>
       </div>
     </>

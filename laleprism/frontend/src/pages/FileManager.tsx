@@ -9,8 +9,8 @@ export default function FileManager() {
   return (
     <>
       <PageMeta
-        title="React.js File Manager Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js File Manager  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js File Manager Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js File Manager  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="File Manager" />
       <div className="grid grid-cols-12 gap-6">

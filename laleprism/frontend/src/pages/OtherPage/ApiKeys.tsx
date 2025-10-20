@@ -6,8 +6,8 @@ export default function ApiKeys() {
   return (
     <div>
       <PageMeta
-        title="React.js API Keys Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js  API Keys page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js API Keys Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js  API Keys page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="API Keys" />
       <ApiKeyTable />

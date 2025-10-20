@@ -6,8 +6,8 @@ export default function ImageGeneratorPage() {
   return (
     <div>
       <PageMeta
-        title="React.js AI Image Generator  | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Image Generator  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js AI Image Generator  | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Image Generator  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <GeneratorLayout>
         <ImageGeneratorContent />

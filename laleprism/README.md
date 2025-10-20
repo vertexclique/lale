@@ -309,4 +309,3 @@ MIT OR Apache-2.0
 
 - Built with [Tauri](https://tauri.app/)
 - Uses [lale](../lale) WCET analysis library
-- UI based on [TailAdmin](https://tailadmin.com/)

@@ -10,8 +10,8 @@ export default function ComingSoon() {
   return (
     <>
       <PageMeta
-        title="React.js Coming Soon Page | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Coming Soon Page page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Coming Soon Page | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Coming Soon Page page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <div className="relative flex flex-col items-center justify-center w-full min-h-screen p-6 overflow-hidden z-1">
         <GridShape />

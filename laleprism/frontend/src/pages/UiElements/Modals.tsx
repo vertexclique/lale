@@ -6,8 +6,8 @@ export default function Modals() {
   return (
     <>
       <PageMeta
-        title="React.js Modals Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Modals  page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Modals Dashboard | LALE Prism - React.js Admin Dashboard Template"
+        description="This is React.js Modals  page for LALE Prism - React.js Tailwind CSS Admin Dashboard Template"
       />
       <PageBreadcrumb pageTitle="Modals" />
       <ModalExamples />

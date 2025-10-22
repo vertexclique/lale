@@ -73,10 +73,11 @@ const ScheduleAnalysis: React.FC = () => {
             <select
               value={selectedPlatform}
               onChange={(e) => setSelectedPlatform(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              style={{ color: '#111827' }}
             >
               {platforms.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} style={{ color: '#111827', backgroundColor: '#f9fafb' }}>
                   {p.name} ({p.frequency_mhz}MHz)
                 </option>
               ))}
@@ -88,10 +89,11 @@ const ScheduleAnalysis: React.FC = () => {
             <select
               value={policy}
               onChange={(e) => setPolicy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              style={{ color: '#111827' }}
             >
-              <option value="rma">Rate Monotonic (RMA)</option>
-              <option value="edf">Earliest Deadline First (EDF)</option>
+              <option value="rma" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>Rate Monotonic (RMA)</option>
+              <option value="edf" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>Earliest Deadline First (EDF)</option>
             </select>
           </div>
 

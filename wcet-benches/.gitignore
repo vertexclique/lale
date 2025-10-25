@@ -1,0 +1,19 @@
+# Benchmark source code (downloaded separately)
+benchmarks/
+
+# Compiled LLVM IR
+llvm-ir/
+
+# Analysis results
+results/
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

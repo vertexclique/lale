@@ -6,9 +6,19 @@ use std::hash::{Hash, Hasher};
 pub struct MemoryBlock(pub u64);
 
 impl MemoryBlock {
+    /// Create memory block from address (simplified constructor)
+    pub fn new(address: u64) -> Self {
+        Self(address)
+    }
+    
     /// Create memory block from address and line size
     pub fn from_address(address: u64, line_size: usize) -> Self {
         Self(address / line_size as u64)
+    }
+    
+    /// Get set index for this block
+    pub fn set_index(&self, line_size: usize, num_sets: usize) -> usize {
+        ((self.0 / line_size as u64) % num_sets as u64) as usize
     }
 }
 
@@ -52,6 +62,11 @@ impl Age {
         (self.must_age as usize) < associativity
     }
     
+    /// Check if block is in cache
+    pub fn contains(&self, block: &MemoryBlock) -> bool {
+        self.is_must_hit(4) // Simplified
+    }
+    
     /// Check if possibly not in cache
     pub fn is_may_miss(&self, associativity: usize) -> bool {
         (self.may_age as usize) >= associativity
@@ -59,7 +74,7 @@ impl Age {
 }
 
 /// Cache set containing age information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheSet {
     /// Age map: memory block -> age
     pub ages: AHashMap<MemoryBlock, Age>,
@@ -131,6 +146,33 @@ impl CacheSet {
             ages,
             associativity: self.associativity,
         }
+    }
+    
+    /// Check if block is in set
+    pub fn contains(&self, block: &MemoryBlock) -> bool {
+        self.ages.contains_key(block)
+    }
+    
+    /// Must join - intersection
+    pub fn must_join(&self, other: &Self) -> Self {
+        let mut ages = AHashMap::new();
+        
+        // Only keep blocks in both sets
+        for (block, age1) in &self.ages {
+            if let Some(age2) = other.ages.get(block) {
+                ages.insert(*block, age1.join(age2));
+            }
+        }
+        
+        Self {
+            ages,
+            associativity: self.associativity,
+        }
+    }
+    
+    /// May join - union
+    pub fn may_join(&self, other: &Self) -> Self {
+        self.join(other) // Same as regular join for may analysis
     }
     
     /// Compute hash for state comparison

@@ -1,5 +1,7 @@
+pub mod aeg;
 pub mod analysis;
 pub mod ir;
+pub mod microarch;
 pub mod output;
 pub mod platform;
 pub mod scheduling;

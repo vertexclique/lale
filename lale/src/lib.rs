@@ -1,5 +1,6 @@
 pub mod aeg;
 pub mod analysis;
+pub mod config;
 pub mod ir;
 pub mod microarch;
 pub mod output;

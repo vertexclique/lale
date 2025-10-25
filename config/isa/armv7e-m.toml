@@ -1,0 +1,12 @@
+# ARMv7E-M ISA Configuration
+# Cortex-M4/M7 instruction set
+
+name = "armv7e-m"
+
+[instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 1
+multiply = 3
+divide = 12

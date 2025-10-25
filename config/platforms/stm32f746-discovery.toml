@@ -1,0 +1,81 @@
+# STM32F746 Discovery Board Complete Configuration
+# Hierarchical: ISA → Core → SoC → Board
+
+[isa]
+name = "armv7e-m"
+
+[isa.instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 1
+multiply = 3
+divide = 12
+
+[core]
+name = "cortex-m7"
+
+[core.pipeline]
+stages = 6
+pipeline_type = "inorder"
+
+[core.cache.instruction_cache]
+size_kb = 16
+line_size_bytes = 32
+associativity = 4
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 10
+
+[core.cache.data_cache]
+size_kb = 16
+line_size_bytes = 32
+associativity = 4
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 10
+
+[core.memory]
+load_buffer_size = 8
+store_buffer_size = 8
+
+[core.memory.memory_latency]
+type = "variable"
+min = 3
+max = 10
+
+[soc]
+name = "stm32f746"
+cpu_frequency_mhz = 216
+
+[[soc.memory_regions]]
+name = "ITCM"
+start = 0x00000000
+size = 16384
+latency = 1
+
+[[soc.memory_regions]]
+name = "DTCM"
+start = 0x20000000
+size = 65536
+latency = 1
+
+[[soc.memory_regions]]
+name = "SRAM1"
+start = 0x20010000
+size = 245760
+latency = 3
+
+[[soc.memory_regions]]
+name = "Flash"
+start = 0x08000000
+size = 1048576
+latency = 7
+
+[board]
+name = "stm32f746-discovery"
+
+[board.external_memory]
+memory_type = "SDRAM"
+size_mb = 8
+latency = 15

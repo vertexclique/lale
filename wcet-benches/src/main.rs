@@ -1,7 +1,6 @@
-use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use wcet_benches::{discover_benchmarks, Benchmark, BenchmarkRunner, BenchmarkSuite};
+use wcet_benches::{BenchmarkRunner, BenchmarkResult};
 
 #[derive(Parser)]
 #[command(name = "bench-runner")]
@@ -13,207 +12,204 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Run benchmarks
+    /// Run WCET analysis on benchmarks
     Run {
-        /// Benchmark suite to run
-        #[arg(short, long, value_enum)]
-        suite: Option<Suite>,
-        
-        /// Specific benchmark name
-        #[arg(short, long)]
-        benchmark: Option<String>,
-        
         /// Platform configuration file
         #[arg(short, long, default_value = "../config/platforms/stm32f746-discovery.toml")]
-        platform: PathBuf,
+        platform: String,
         
         /// LLVM IR directory
-        #[arg(short, long, default_value = "llvm-ir")]
+        #[arg(short, long, default_value = "data/llvm-ir")]
         ir_dir: PathBuf,
         
-        /// Results directory
-        #[arg(short, long, default_value = "results")]
-        results_dir: PathBuf,
+        /// Specific benchmark name (optional)
+        #[arg(short, long)]
+        benchmark: Option<String>,
     },
     
     /// List available benchmarks
     List {
         /// LLVM IR directory
-        #[arg(short, long, default_value = "llvm-ir")]
+        #[arg(short, long, default_value = "data/llvm-ir")]
         ir_dir: PathBuf,
     },
-    
-    /// Compare results with reference
-    Compare {
-        /// Lale results file
-        #[arg(short, long)]
-        lale: PathBuf,
-        
-        /// Reference results file
-        #[arg(short, long)]
-        reference: PathBuf,
-    },
 }
 
-#[derive(clap::ValueEnum, Clone, Copy)]
-enum Suite {
-    TACLeBench,
-    Malardalen,
-    MRTC,
-    All,
-}
-
-impl Suite {
-    fn to_benchmark_suite(self) -> Option<BenchmarkSuite> {
-        match self {
-            Self::TACLeBench => Some(BenchmarkSuite::TACLeBench),
-            Self::Malardalen => Some(BenchmarkSuite::Malardalen),
-            Self::MRTC => Some(BenchmarkSuite::MRTC),
-            Self::All => None,
-        }
-    }
-}
-
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
     
     match cli.command {
-        Commands::Run {
-            suite,
-            benchmark,
-            platform,
-            ir_dir,
-            results_dir,
-        } => {
-            run_benchmarks(suite, benchmark, platform, ir_dir, results_dir)?;
+        Commands::Run { platform, ir_dir, benchmark } => {
+            run_benchmarks(platform, ir_dir, benchmark);
         }
         Commands::List { ir_dir } => {
-            list_benchmarks(ir_dir)?;
-        }
-        Commands::Compare { lale, reference } => {
-            compare_results(lale, reference)?;
+            list_benchmarks(ir_dir);
         }
     }
-    
-    Ok(())
 }
 
-fn run_benchmarks(
-    suite: Option<Suite>,
-    benchmark_name: Option<String>,
-    platform: PathBuf,
-    ir_dir: PathBuf,
-    results_dir: PathBuf,
-) -> Result<()> {
-    let runner = BenchmarkRunner::new(platform, results_dir);
+fn run_benchmarks(platform: String, ir_dir: PathBuf, specific_benchmark: Option<String>) {
+    println!("=== WCET Benchmark Analysis ===");
+    println!("Platform: {}", platform);
+    println!("IR Directory: {}", ir_dir.display());
+    println!();
     
-    // Discover benchmarks
-    let suites = match suite {
-        Some(Suite::All) | None => vec![
-            BenchmarkSuite::TACLeBench,
-            BenchmarkSuite::Malardalen,
-            BenchmarkSuite::MRTC,
-        ],
-        Some(s) => vec![s.to_benchmark_suite().unwrap()],
-    };
+    let runner = BenchmarkRunner::new(platform);
+    let mut results = Vec::new();
     
-    let mut all_benchmarks = Vec::new();
-    for suite in suites {
-        let benchmarks = discover_benchmarks(suite, &ir_dir)?;
-        all_benchmarks.extend(benchmarks);
+    // Find all .ll files
+    let mut ir_files = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&ir_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                // Recursively search subdirectories
+                if let Ok(sub_entries) = std::fs::read_dir(&path) {
+                    for sub_entry in sub_entries.flatten() {
+                        let sub_path = sub_entry.path();
+                        if sub_path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                            ir_files.push(sub_path);
+                        }
+                    }
+                }
+            } else if path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                ir_files.push(path);
+            }
+        }
     }
     
-    // Filter by name if specified
-    let benchmarks: Vec<Benchmark> = if let Some(name) = benchmark_name {
-        all_benchmarks
-            .into_iter()
-            .filter(|b| b.name == name)
-            .collect()
-    } else {
-        all_benchmarks
-    };
+    // Filter out input/data files (they contain no functions)
+    ir_files.retain(|p| {
+        if let Some(name) = p.file_stem().and_then(|s| s.to_str()) {
+            !name.contains("input") && !name.contains("_data")
+        } else {
+            false
+        }
+    });
     
-    if benchmarks.is_empty() {
-        println!("No benchmarks found");
-        return Ok(());
+    // Filter by specific benchmark if provided
+    if let Some(ref name) = specific_benchmark {
+        ir_files.retain(|p| {
+            p.file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| s == name)
+                .unwrap_or(false)
+        });
     }
     
-    println!("Running {} benchmarks...\n", benchmarks.len());
+    println!("Found {} benchmarks\n", ir_files.len());
     
-    // Run benchmarks
-    let results = runner.run_suite(&benchmarks)?;
+    // Run analysis on each benchmark
+    for ir_file in &ir_files {
+        let name = ir_file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+        
+        print!("Analyzing: {} ... ", name);
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        
+        let result = runner.run_benchmark(&name, ir_file);
+        
+        if result.success {
+            print!("✓ WCET: {} cycles", result.wcet_cycles);
+            
+            // Show reference comparison if available
+            if let Some(ref_wcet) = result.reference_wcet {
+                print!(" (ref: {} cycles", ref_wcet);
+                if let Some(accuracy) = result.details.accuracy {
+                    print!(", {:.1}%", accuracy);
+                }
+                print!(")");
+            }
+            
+            println!(" ({} ms)", result.analysis_time_ms);
+            print!("  Blocks: {}, Edges: {}", 
+                result.details.basic_blocks,
+                result.details.cfg_edges
+            );
+            
+            // Show flow facts if found
+            if result.details.loop_bounds_found > 0 {
+                print!(", Loops: {}", result.details.loop_bounds_found);
+            }
+            if let Some(ref entry) = result.details.entry_point {
+                print!(", Entry: {}", entry);
+            }
+            println!();
+        } else {
+            println!("✗ Failed");
+            if let Some(ref error) = result.error {
+                println!("  Error: {}", error);
+            }
+        }
+        
+        results.push(result);
+    }
     
     // Print summary
     println!("\n=== Summary ===");
     let successful = results.iter().filter(|r| r.success).count();
     let failed = results.len() - successful;
+    
     println!("Total: {}", results.len());
-    println!("Successful: {}", successful);
+    println!("Successful: {} ({:.1}%)", 
+        successful, 
+        (successful as f64 / results.len() as f64) * 100.0
+    );
     println!("Failed: {}", failed);
     
     if successful > 0 {
-        let total_time: u64 = results.iter().map(|r| r.analysis_time_ms).sum();
+        let total_time: u64 = results.iter()
+            .filter(|r| r.success)
+            .map(|r| r.analysis_time_ms)
+            .sum();
         let avg_time = total_time / successful as u64;
         println!("Average analysis time: {} ms", avg_time);
     }
     
     // Save results
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("results_{}.json", timestamp);
-    runner.save_results(&results, &filename)?;
-    println!("\nResults saved to: results/{}", filename);
+    let output_path = PathBuf::from("results/benchmark_results.json");
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
     
-    Ok(())
+    if let Ok(json) = serde_json::to_string_pretty(&results) {
+        if std::fs::write(&output_path, json).is_ok() {
+            println!("\nResults saved to: {}", output_path.display());
+        }
+    }
 }
 
-fn list_benchmarks(ir_dir: PathBuf) -> Result<()> {
-    let suites = vec![
-        BenchmarkSuite::TACLeBench,
-        BenchmarkSuite::Malardalen,
-        BenchmarkSuite::MRTC,
-    ];
+fn list_benchmarks(ir_dir: PathBuf) {
+    println!("=== Available Benchmarks ===\n");
     
-    for suite in suites {
-        let benchmarks = discover_benchmarks(suite, &ir_dir)?;
-        
-        if !benchmarks.is_empty() {
-            println!("\n{} ({} benchmarks):", suite.name(), benchmarks.len());
-            for bench in benchmarks {
-                println!("  - {}", bench.name);
+    if let Ok(entries) = std::fs::read_dir(&ir_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let dir_name = path.file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown");
+                
+                println!("{}:", dir_name);
+                
+                if let Ok(sub_entries) = std::fs::read_dir(&path) {
+                    let mut count = 0;
+                    for sub_entry in sub_entries.flatten() {
+                        let sub_path = sub_entry.path();
+                        if sub_path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                            let name = sub_path.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("unknown");
+                            println!("  - {}", name);
+                            count += 1;
+                        }
+                    }
+                    println!("  Total: {}\n", count);
+                }
             }
         }
     }
-    
-    Ok(())
-}
-
-fn compare_results(lale_path: PathBuf, reference_path: PathBuf) -> Result<()> {
-    use std::fs;
-    
-    let lale_json = fs::read_to_string(lale_path)?;
-    let reference_json = fs::read_to_string(reference_path)?;
-    
-    let lale_results: Vec<wcet_benches::BenchmarkResult> = serde_json::from_str(&lale_json)?;
-    let reference_results: Vec<wcet_benches::BenchmarkResult> = serde_json::from_str(&reference_json)?;
-    
-    println!("=== Comparison ===\n");
-    println!("{:<30} {:>12} {:>12} {:>10}", "Benchmark", "Lale", "Reference", "Ratio");
-    println!("{}", "-".repeat(70));
-    
-    for lale_result in &lale_results {
-        if let Some(ref_result) = reference_results.iter().find(|r| r.name == lale_result.name) {
-            if lale_result.success && ref_result.success {
-                let ratio = lale_result.wcet_cycles as f64 / ref_result.wcet_cycles as f64;
-                println!(
-                    "{:<30} {:>12} {:>12} {:>9.2}x",
-                    lale_result.name,
-                    lale_result.wcet_cycles,
-                    ref_result.wcet_cycles,
-                    ratio
-                );
-            }
-        }
-    }
-    
-    Ok(())
 }

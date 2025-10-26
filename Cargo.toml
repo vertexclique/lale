@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "lale",
     "laleprism",
+    "wcet-benches",
 ]
 
 [workspace.package]

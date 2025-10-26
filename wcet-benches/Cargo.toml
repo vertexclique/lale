@@ -12,14 +12,13 @@ anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 walkdir = "2.3"
 chrono = "0.4"
+which = "6.0"
+regex = "1.10"
 
 [dev-dependencies]
 criterion = "0.5"
+tempfile = "3.8"
 
 [[bin]]
 name = "bench-runner"
 path = "src/main.rs"
-
-[[bench]]
-name = "wcet_benchmarks"
-harness = false

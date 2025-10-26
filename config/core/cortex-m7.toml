@@ -1,0 +1,33 @@
+# Cortex-M7 Core Configuration
+# High-performance ARM Cortex-M with 6-stage pipeline
+
+name = "cortex-m7"
+
+[pipeline]
+stages = 6
+pipeline_type = "inorder"
+
+[cache.instruction_cache]
+size_kb = 16
+line_size_bytes = 32
+associativity = 4
+replacement_policy = "PLRU"
+hit_latency = 1
+miss_latency = 10
+
+[cache.data_cache]
+size_kb = 16
+line_size_bytes = 32
+associativity = 4
+replacement_policy = "PLRU"
+hit_latency = 1
+miss_latency = 10
+
+[memory]
+load_buffer_size = 8
+store_buffer_size = 8
+
+[memory.memory_latency]
+type = "variable"
+min = 3
+max = 10

@@ -1,0 +1,19 @@
+# RISC-V RV32I Core Configuration
+# Base integer instruction set, 5-stage pipeline
+
+name = "rv32i"
+
+[pipeline]
+stages = 5
+pipeline_type = "inorder"
+
+# No caches on basic RV32I
+[cache]
+
+[memory]
+load_buffer_size = 2
+store_buffer_size = 2
+
+[memory.memory_latency]
+type = "fixed"
+cycles = 3

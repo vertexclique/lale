@@ -1,0 +1,41 @@
+# RISC-V RV64GC Core Configuration
+# 64-bit general-purpose with Compressed extensions, 5-stage pipeline
+
+name = "rv64gc"
+
+[pipeline]
+stages = 5
+pipeline_type = "inorder"
+
+[cache.instruction_cache]
+size_kb = 32
+line_size_bytes = 64
+associativity = 4
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 12
+
+[cache.data_cache]
+size_kb = 32
+line_size_bytes = 64
+associativity = 4
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 12
+
+[cache.l2_cache]
+size_kb = 256
+line_size_bytes = 64
+associativity = 8
+replacement_policy = "LRU"
+hit_latency = 8
+miss_latency = 30
+
+[memory]
+load_buffer_size = 8
+store_buffer_size = 8
+
+[memory.memory_latency]
+type = "variable"
+min = 30
+max = 60

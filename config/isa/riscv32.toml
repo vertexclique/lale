@@ -1,0 +1,12 @@
+# RISC-V 32-bit ISA Configuration
+# Base integer instruction set
+
+name = "riscv32"
+
+[instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 1
+multiply = 3
+divide = 16

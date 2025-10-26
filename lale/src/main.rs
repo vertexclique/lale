@@ -27,6 +27,25 @@ fn main() -> Result<()> {
             let config = parse_config(&args[3..])?;
             analyze_directory(dir, config)?;
         }
+        "list-boards" => {
+            list_boards()?;
+        }
+        "validate-board" => {
+            if args.len() < 3 {
+                eprintln!("Error: Missing board name");
+                eprintln!("Usage: lale validate-board <board-name>");
+                std::process::exit(1);
+            }
+            validate_board(&args[2])?;
+        }
+        "export-board" => {
+            if args.len() < 3 {
+                eprintln!("Error: Missing board name");
+                eprintln!("Usage: lale export-board <board-name>");
+                std::process::exit(1);
+            }
+            export_board(&args[2])?;
+        }
         "help" | "--help" | "-h" => {
             print_usage();
         }
@@ -45,7 +64,8 @@ fn main() -> Result<()> {
 
 #[derive(Debug)]
 struct Config {
-    platform: String,
+    platform: Option<String>, // Legacy platform name
+    board: Option<String>,    // New board config path
     policy: SchedulingPolicy,
     output: PathBuf,
     tasks: Vec<TaskConfig>,
@@ -63,7 +83,8 @@ struct TaskConfig {
 }
 
 fn parse_config(args: &[String]) -> Result<Config> {
-    let mut platform = "cortex-m4".to_string();
+    let mut platform: Option<String> = None;
+    let mut board: Option<String> = None;
     let mut policy = SchedulingPolicy::RMA;
     let mut output = PathBuf::from("schedule.json");
     let mut tasks = Vec::new();
@@ -76,7 +97,13 @@ fn parse_config(args: &[String]) -> Result<Config> {
             "--platform" | "-p" => {
                 i += 1;
                 if i < args.len() {
-                    platform = args[i].clone();
+                    platform = Some(args[i].clone());
+                }
+            }
+            "--board" | "-b" => {
+                i += 1;
+                if i < args.len() {
+                    board = Some(args[i].clone());
                 }
             }
             "--policy" => {
@@ -130,8 +157,12 @@ fn parse_config(args: &[String]) -> Result<Config> {
         i += 1;
     }
 
+    // Default to cortex-m4 if neither platform nor board specified
+    let final_platform = platform.or(Some("cortex-m4".to_string()));
+
     Ok(Config {
-        platform,
+        platform: final_platform,
+        board,
         policy,
         output,
         tasks,
@@ -193,7 +224,13 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
     println!();
     println!("Configuration:");
     println!("  Directory: {}", dir.display());
-    println!("  Platform: {}", config.platform);
+
+    if let Some(ref board) = config.board {
+        println!("  Board: {}", board);
+    } else if let Some(ref platform) = config.platform {
+        println!("  Platform: {}", platform);
+    }
+
     println!("  Policy: {:?}", config.policy);
     println!("  Output: {}", config.output.display());
     println!("  Tasks: {} configured", config.tasks.len());
@@ -208,8 +245,12 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
     println!("Found {} LLVM IR file(s)", ll_files.len());
     println!();
 
-    // Select platform
-    let platform = select_platform(&config.platform)?;
+    // Select platform - use platform if specified, otherwise default
+    let platform_name = config
+        .platform
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No platform specified"))?;
+    let platform = select_platform(platform_name)?;
     let analyzer = WCETAnalyzer::new(platform);
 
     // Parse all modules
@@ -357,6 +398,144 @@ fn find_ll_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
     Ok(ll_files)
 }
 
+fn list_boards() -> Result<()> {
+    use lale::config::ConfigManager;
+
+    let config_dir = PathBuf::from("config");
+    let manager = ConfigManager::new(config_dir);
+
+    println!("Available Board Configurations:");
+    println!("================================");
+    println!();
+
+    match manager.list_platforms() {
+        Ok(platforms) => {
+            if platforms.is_empty() {
+                println!("No board configurations found in config/ directory");
+                return Ok(());
+            }
+
+            // Group by category
+            let mut cores = Vec::new();
+            let mut platforms_list = Vec::new();
+
+            for platform in platforms {
+                if platform.starts_with("cores/") {
+                    cores.push(platform);
+                } else if platform.starts_with("platforms/") {
+                    platforms_list.push(platform);
+                }
+            }
+
+            if !cores.is_empty() {
+                println!("Core Configurations:");
+                for core in &cores {
+                    println!("  {}", core);
+                }
+                println!();
+            }
+
+            if !platforms_list.is_empty() {
+                println!("Platform Configurations:");
+                for platform in &platforms_list {
+                    println!("  {}", platform);
+                }
+                println!();
+            }
+
+            println!(
+                "Total: {} configurations",
+                cores.len() + platforms_list.len()
+            );
+        }
+        Err(e) => {
+            eprintln!("Error listing boards: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_board(board_name: &str) -> Result<()> {
+    use lale::config::ConfigManager;
+
+    let config_dir = PathBuf::from("config");
+    let mut manager = ConfigManager::new(config_dir);
+
+    println!("Validating board configuration: {}", board_name);
+    println!();
+
+    match manager.load_platform(board_name) {
+        Ok(config) => {
+            println!("✓ Configuration loaded successfully");
+            println!();
+            println!("Configuration Details:");
+            println!("  ISA: {}", config.isa.name);
+            println!("  Core: {}", config.core.name);
+            println!("  Pipeline stages: {}", config.core.pipeline.stages);
+
+            if let Some(ref icache) = config.core.cache.instruction_cache {
+                println!(
+                    "  I-Cache: {} KB, {}-way",
+                    icache.size_kb, icache.associativity
+                );
+            }
+
+            if let Some(ref dcache) = config.core.cache.data_cache {
+                println!(
+                    "  D-Cache: {} KB, {}-way",
+                    dcache.size_kb, dcache.associativity
+                );
+            }
+
+            if let Some(ref soc) = config.soc {
+                println!("  SoC: {} @ {} MHz", soc.name, soc.cpu_frequency_mhz);
+                println!("  Memory regions: {}", soc.memory_regions.len());
+            }
+
+            if let Some(ref board) = config.board {
+                println!("  Board: {}", board.name);
+            }
+
+            println!();
+            println!("✓ Validation passed");
+        }
+        Err(e) => {
+            eprintln!("✗ Validation failed:");
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn export_board(board_name: &str) -> Result<()> {
+    use lale::config::ConfigManager;
+
+    let config_dir = PathBuf::from("config");
+    let mut manager = ConfigManager::new(config_dir);
+
+    match manager.load_platform(board_name) {
+        Ok(config) => match manager.export_platform(&config) {
+            Ok(toml_string) => {
+                println!("{}", toml_string);
+            }
+            Err(e) => {
+                eprintln!("Error exporting configuration: {}", e);
+                std::process::exit(1);
+            }
+        },
+        Err(e) => {
+            eprintln!("Error loading configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
 fn print_usage() {
     println!("LALE - LLVM-based WCET Analysis and Static Scheduling");
     println!();
@@ -417,6 +596,16 @@ fn print_usage() {
     println!("        --auto-tasks \\");
     println!("        --auto-period 10000 \\");
     println!("        --output schedule.json");
+    println!();
+    println!("BOARD CONFIGURATION COMMANDS:");
+    println!("    lale list-boards                List available board configurations");
+    println!("    lale validate-board <name>      Validate a board configuration");
+    println!("    lale export-board <name>        Export resolved board configuration");
+    println!();
+    println!("    Examples:");
+    println!("      lale list-boards");
+    println!("      lale validate-board platforms/stm32f746-discovery");
+    println!("      lale export-board platforms/stm32f746-discovery > my-board.toml");
     println!();
     println!("OTHER COMMANDS:");
     println!("    lale help              Show this help message");

@@ -61,6 +61,10 @@ pub struct BoardConfig {
     /// Board name (e.g., "stm32f746-discovery", "raspberry-pi-3")
     pub name: String,
 
+    /// Path to parent configuration to inherit from
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inherits: Option<String>,
+
     /// External memory configuration
     pub external_memory: Option<ExternalMemoryConfig>,
 }

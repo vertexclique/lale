@@ -30,6 +30,7 @@ export default function Configuration() {
   const [boardDetails, setBoardDetails] = useState<BoardConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Load boards on mount
   useEffect(() => {
@@ -89,7 +90,14 @@ export default function Configuration() {
     loadBoardDetails(boardName);
   };
 
-  const platforms = boards.filter(b => b.startsWith('platforms/'));
+  // Filter platforms by search query
+  const platforms = boards
+    .filter(b => b.startsWith('platforms/'))
+    .filter(b => {
+      if (!searchQuery) return true;
+      const boardName = b.replace('platforms/', '').toLowerCase();
+      return boardName.includes(searchQuery.toLowerCase());
+    });
 
   return (
     <div className="p-6">
@@ -119,6 +127,32 @@ export default function Configuration() {
             </div>
             
             <div className="p-4 space-y-4">
+              {/* Search Input */}
+              {boards.length > 0 && (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search boards..."
+                    className="w-full px-3 py-2 pl-9 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <svg
+                    className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+              )}
+
               {loading && boards.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

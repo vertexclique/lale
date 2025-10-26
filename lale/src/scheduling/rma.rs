@@ -25,10 +25,12 @@ impl RMAScheduler {
         }
 
         // Sort by period (shorter period = higher priority)
+        // Use task name as tiebreaker for deterministic ordering
         periodic_tasks.sort_by(|a, b| {
             a.period_us
                 .partial_cmp(&b.period_us)
                 .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.name.cmp(&b.name))
         });
 
         // Liu & Layland utilization bound test
@@ -97,13 +99,14 @@ impl RMAScheduler {
 
     /// Assign priorities based on RMA (shorter period = higher priority)
     pub fn assign_priorities(tasks: &mut [Task]) {
-        // Sort by period
+        // Sort by period, use task name as tiebreaker for deterministic ordering
         tasks.sort_by(|a, b| {
             let period_a = a.period_us.unwrap_or(f64::MAX);
             let period_b = b.period_us.unwrap_or(f64::MAX);
             period_a
                 .partial_cmp(&period_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.name.cmp(&b.name))
         });
 
         // Assign priorities (0 = highest)

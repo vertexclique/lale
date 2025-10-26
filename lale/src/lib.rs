@@ -63,7 +63,11 @@ impl WCETAnalyzer {
     pub fn analyze_module(&self, module: &llvm_ir::Module) -> ahash::AHashMap<String, u64> {
         let mut results = ahash::AHashMap::new();
 
-        for function in &module.functions {
+        // Sort functions by name for deterministic order
+        let mut functions: Vec<_> = module.functions.iter().collect();
+        functions.sort_by_key(|f| &f.name);
+
+        for function in functions {
             if let Ok(wcet) = self.analyze_function(function) {
                 results.insert(function.name.to_string(), wcet);
             }

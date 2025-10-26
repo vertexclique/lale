@@ -122,8 +122,112 @@ pub fn list_platforms() -> Vec<PlatformInfo> {
     ]
 }
 
-/// Select platform model by ID
+/// Select platform model by ID or configuration path
 fn select_platform(platform_id: &str) -> Result<PlatformModel> {
+    // Check if it's a TOML configuration path (e.g., "platforms/nucleo-h743zi")
+    if platform_id.contains('/') || platform_id.contains("platforms") {
+        use lale::analysis::timing::AccessType;
+        use lale::analysis::{Cycles, InstructionClass};
+        use lale::config::ConfigManager;
+        use std::path::PathBuf;
+
+        let config_dir = PathBuf::from("config");
+        let mut manager = ConfigManager::new(config_dir);
+
+        let config = manager.load_platform(platform_id).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to load platform configuration '{}': {}",
+                platform_id,
+                e
+            )
+        })?;
+
+        // Build instruction timings from ISA config
+        let mut instruction_timings = ahash::AHashMap::new();
+
+        // Arithmetic operations
+        instruction_timings.insert(
+            InstructionClass::Add,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::Sub,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::And,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::Or,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::Xor,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::Shl,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+        instruction_timings.insert(
+            InstructionClass::Shr,
+            Cycles::new(config.isa.instruction_timings.alu),
+        );
+
+        // Memory operations
+        instruction_timings.insert(
+            InstructionClass::Load(AccessType::Ram),
+            Cycles::new(config.isa.instruction_timings.load),
+        );
+        instruction_timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::new(config.isa.instruction_timings.store),
+        );
+
+        // Control flow
+        instruction_timings.insert(
+            InstructionClass::Branch,
+            Cycles::new(config.isa.instruction_timings.branch),
+        );
+        instruction_timings.insert(
+            InstructionClass::Call,
+            Cycles::new(config.isa.instruction_timings.branch),
+        );
+        instruction_timings.insert(
+            InstructionClass::Ret,
+            Cycles::new(config.isa.instruction_timings.branch),
+        );
+
+        // Multiply/Divide
+        instruction_timings.insert(
+            InstructionClass::Mul,
+            Cycles::new(config.isa.instruction_timings.multiply),
+        );
+        instruction_timings.insert(
+            InstructionClass::Div,
+            Cycles::new(config.isa.instruction_timings.divide),
+        );
+        instruction_timings.insert(
+            InstructionClass::Rem,
+            Cycles::new(config.isa.instruction_timings.divide),
+        );
+
+        // Get CPU frequency from SoC or use default
+        let cpu_frequency_mhz = config
+            .soc
+            .as_ref()
+            .map(|s| s.cpu_frequency_mhz)
+            .unwrap_or(100); // Default 100 MHz if no SoC specified
+
+        return Ok(PlatformModel {
+            name: platform_id.to_string(),
+            cpu_frequency_mhz,
+            instruction_timings,
+        });
+    }
+
+    // Fallback to hardcoded platform models for backward compatibility
     let model = match platform_id.to_lowercase().as_str() {
         "cortex-m0" | "m0" => CortexM0Model::new(),
         "cortex-m3" | "m3" => CortexM3Model::new(),
@@ -155,8 +259,11 @@ fn find_ll_files(dir: &Path) -> Result<Vec<PathBuf>> {
         anyhow::bail!("Path is not a directory: {}", dir.display());
     }
 
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
+    // Collect and sort entries for deterministic order
+    let mut entries: Vec<_> = std::fs::read_dir(dir)?.collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(|e| e.path());
+
+    for entry in entries {
         let path = entry.path();
 
         if path.is_file() {
@@ -206,19 +313,23 @@ pub fn analyze_directory(config: AnalysisConfig) -> Result<AnalysisReport> {
     // Build tasks
     let tasks: Vec<Task> = if config.auto_tasks {
         // Auto-generate tasks from all functions
-        all_wcet_results
-            .iter()
+        // Sort by function name for deterministic ordering
+        let mut sorted_results: Vec<_> = all_wcet_results.iter().collect();
+        sorted_results.sort_by_key(|(func_name, _)| func_name.as_str());
+
+        sorted_results
+            .into_iter()
             .enumerate()
             .map(|(idx, (func_name, &wcet_cycles))| {
                 let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
                 Task {
-                    name: format!("task_{}", idx),
+                    name: func_name.clone(), // Use function name as task name for determinism
                     function: func_name.clone(),
                     wcet_cycles,
                     wcet_us,
                     period_us: Some(config.auto_period_us),
                     deadline_us: Some(config.auto_period_us),
-                    priority: Some(idx as u8),
+                    priority: None, // Let RMA assign priorities
                     preemptible: true,
                     dependencies: vec![],
                 }

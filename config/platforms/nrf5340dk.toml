@@ -1,0 +1,64 @@
+# nRF5340 DK Platform Configuration
+# Nordic nRF5340 dual-core ARM Cortex-M33 development kit
+
+[isa]
+name = "armv8-m"
+
+[isa.instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 1
+multiply = 2
+divide = 12
+
+[core]
+name = "cortex-m33"
+
+[core.pipeline]
+stages = 3
+pipeline_type = "inorder"
+
+[core.cache]
+[core.cache.instruction_cache]
+size_kb = 32
+line_size_bytes = 32
+associativity = 2
+replacement_policy = "LRU"
+hit_latency = 0
+miss_latency = 10
+
+[core.cache.data_cache]
+size_kb = 32
+line_size_bytes = 32
+associativity = 2
+replacement_policy = "LRU"
+hit_latency = 0
+miss_latency = 10
+
+[core.memory]
+load_buffer_size = 2
+store_buffer_size = 2
+
+[core.memory.memory_latency]
+type = "fixed"
+cycles = 2
+
+[soc]
+name = "nrf5340"
+cpu_frequency_mhz = 128
+
+[[soc.memory_regions]]
+name = "flash"
+start = 0x00000000
+size = 1048576
+latency = 3
+
+[[soc.memory_regions]]
+name = "sram"
+start = 0x20000000
+size = 524288
+latency = 1
+
+[board]
+name = "nrf5340dk"

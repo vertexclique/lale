@@ -1,0 +1,64 @@
+# Kendryte K210 Platform Configuration
+# Kendryte K210 dual-core RISC-V AI processor
+
+[isa]
+name = "riscv64imafdc"
+
+[isa.instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 2
+multiply = 3
+divide = 35
+
+[core]
+name = "k210-rv64imafdc"
+
+[core.pipeline]
+stages = 5
+pipeline_type = "inorder"
+
+[core.cache]
+[core.cache.instruction_cache]
+size_kb = 32
+line_size_bytes = 64
+associativity = 2
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 10
+
+[core.cache.data_cache]
+size_kb = 32
+line_size_bytes = 64
+associativity = 2
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 10
+
+[core.memory]
+load_buffer_size = 4
+store_buffer_size = 4
+
+[core.memory.memory_latency]
+type = "fixed"
+cycles = 3
+
+[soc]
+name = "k210"
+cpu_frequency_mhz = 400
+
+[[soc.memory_regions]]
+name = "sram"
+start = 0x80000000
+size = 6291456
+latency = 1
+
+[[soc.memory_regions]]
+name = "ai_sram"
+start = 0x80600000
+size = 2097152
+latency = 1
+
+[board]
+name = "k210-dev"

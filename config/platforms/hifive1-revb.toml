@@ -1,0 +1,56 @@
+# SiFive HiFive1 Rev B Platform Configuration
+# SiFive FE310-G002 RISC-V microcontroller
+
+[isa]
+name = "riscv32imac"
+
+[isa.instruction_timings]
+alu = 1
+load = 2
+store = 2
+branch = 3
+multiply = 4
+divide = 34
+
+[core]
+name = "sifive-e31"
+
+[core.pipeline]
+stages = 5
+pipeline_type = "inorder"
+
+[core.cache]
+[core.cache.instruction_cache]
+size_kb = 16
+line_size_bytes = 64
+associativity = 2
+replacement_policy = "LRU"
+hit_latency = 1
+miss_latency = 12
+
+[core.memory]
+load_buffer_size = 2
+store_buffer_size = 2
+
+[core.memory.memory_latency]
+type = "fixed"
+cycles = 3
+
+[soc]
+name = "fe310-g002"
+cpu_frequency_mhz = 320
+
+[[soc.memory_regions]]
+name = "flash"
+start = 0x20000000
+size = 536870912
+latency = 8
+
+[[soc.memory_regions]]
+name = "sram"
+start = 0x80000000
+size = 16384
+latency = 1
+
+[board]
+name = "hifive1-revb"

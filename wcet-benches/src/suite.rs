@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use anyhow::{Context, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BenchmarkSuite {
@@ -14,8 +14,8 @@ impl BenchmarkSuite {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path.as_ref())
             .context("Failed to read benchmark suite metadata")?;
-        let suite: BenchmarkSuite = serde_json::from_str(&content)
-            .context("Failed to parse benchmark suite metadata")?;
+        let suite: BenchmarkSuite =
+            serde_json::from_str(&content).context("Failed to parse benchmark suite metadata")?;
         Ok(suite)
     }
 }
@@ -97,7 +97,7 @@ pub struct ReferenceWCET {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_benchmark_category() {
         let cat = BenchmarkCategory::Kernel;
@@ -105,7 +105,7 @@ mod tests {
         let parsed: BenchmarkCategory = serde_json::from_str(&json).unwrap();
         assert_eq!(cat, parsed);
     }
-    
+
     #[test]
     fn test_benchmark_info_serialization() {
         let info = BenchmarkInfo {
@@ -128,7 +128,7 @@ mod tests {
             reference_wcet: None,
             measured_execution_time: None,
         };
-        
+
         let json = serde_json::to_string(&info).unwrap();
         let parsed: BenchmarkInfo = serde_json::from_str(&json).unwrap();
         assert_eq!(info.id, parsed.id);

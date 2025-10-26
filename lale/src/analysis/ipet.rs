@@ -1,9 +1,9 @@
 use crate::analysis::{Cycles, Loop, LoopBounds};
 use crate::ir::CFG;
+use ahash::AHashMap;
 use good_lp::*;
 use petgraph::graph::NodeIndex;
 use petgraph::Direction;
-use ahash::AHashMap;
 
 /// IPET solver for WCET calculation using Integer Linear Programming
 pub struct IPETSolver;

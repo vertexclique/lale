@@ -60,11 +60,8 @@ pub fn demangle_batch(symbols: Vec<String>) -> Vec<DemangledName> {
 /// Extract a human-readable function name from demangled output
 pub fn extract_function_name(demangled: &str) -> String {
     // Remove generic parameters and return type
-    let without_generics = demangled
-        .split('<')
-        .next()
-        .unwrap_or(demangled);
-    
+    let without_generics = demangled.split('<').next().unwrap_or(demangled);
+
     // Get the last component (function name)
     without_generics
         .split("::")

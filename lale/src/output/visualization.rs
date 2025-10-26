@@ -1,7 +1,7 @@
 use crate::ir::CFG;
 use crate::scheduling::static_gen::ScheduleTimeline;
-use petgraph::graph::NodeIndex;
 use ahash::AHashMap;
+use petgraph::graph::NodeIndex;
 
 /// Graphviz DOT format generator
 pub struct GraphvizOutput;

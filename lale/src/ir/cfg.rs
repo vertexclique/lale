@@ -1,6 +1,6 @@
+use ahash::AHashMap;
 use llvm_ir::{Function, Terminator};
 use petgraph::graph::{DiGraph, NodeIndex};
-use ahash::AHashMap;
 
 /// Edge type in control flow graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

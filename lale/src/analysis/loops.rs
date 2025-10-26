@@ -1,10 +1,10 @@
 use crate::ir::CFG;
+use ahash::AHashMap;
 use petgraph::algo::dominators::{simple_fast, Dominators};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use std::collections::HashSet;
-use ahash::AHashMap;
 
 /// Loop bounds information
 #[derive(Debug, Clone, PartialEq, Eq)]

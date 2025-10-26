@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use lale::{
-    CortexM4Model, IRParser, SchedulingPolicy, Task, WCETAnalyzer, CortexM0Model, CortexM3Model,
-    CortexM7Model, CortexM33Model, CortexR4Model, CortexR5Model, CortexA7Model, CortexA53Model,
-    RV32IModel, RV32IMACModel, RV32GCModel, RV64GCModel, PlatformModel,
+    CortexA53Model, CortexA7Model, CortexM0Model, CortexM33Model, CortexM3Model, CortexM4Model,
+    CortexM7Model, CortexR4Model, CortexR5Model, IRParser, PlatformModel, RV32GCModel,
+    RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy, Task, WCETAnalyzer,
 };
 use std::path::PathBuf;
 
@@ -116,7 +116,10 @@ fn parse_config(args: &[String]) -> Result<Config> {
                     if let Ok(period) = args[i].parse::<f64>() {
                         auto_period_us = period;
                     } else {
-                        eprintln!("Warning: Invalid period '{}', using default 10000us", args[i]);
+                        eprintln!(
+                            "Warning: Invalid period '{}', using default 10000us",
+                            args[i]
+                        );
                     }
                 }
             }
@@ -175,7 +178,10 @@ fn select_platform(name: &str) -> Result<PlatformModel> {
         "rv32gc" => RV32GCModel::new(),
         "rv64gc" => RV64GCModel::new(),
         _ => {
-            anyhow::bail!("Unknown platform '{}'. Use --help to see available platforms.", name);
+            anyhow::bail!(
+                "Unknown platform '{}'. Use --help to see available platforms.",
+                name
+            );
         }
     };
     Ok(model)
@@ -231,14 +237,14 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
         println!("Auto-generating tasks from all analyzed functions...");
         println!("  Default period: {:.2}us", config.auto_period_us);
         println!();
-        
+
         all_wcet_results
             .iter()
             .enumerate()
             .map(|(idx, (func_name, &wcet_cycles))| {
                 let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
                 let period_us = config.auto_period_us;
-                
+
                 Task {
                     name: format!("task_{}", idx),
                     function: func_name.clone(),
@@ -257,28 +263,28 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
             .tasks
             .iter()
             .filter_map(|tc| {
-            let wcet_cycles = all_wcet_results.get(&tc.function).copied();
-            if wcet_cycles.is_none() {
-                eprintln!(
-                    "Warning: Function '{}' not found in WCET results, skipping task '{}'",
-                    tc.function, tc.name
-                );
-                return None;
-            }
+                let wcet_cycles = all_wcet_results.get(&tc.function).copied();
+                if wcet_cycles.is_none() {
+                    eprintln!(
+                        "Warning: Function '{}' not found in WCET results, skipping task '{}'",
+                        tc.function, tc.name
+                    );
+                    return None;
+                }
 
-            let wcet_cycles = wcet_cycles.unwrap();
-            let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
+                let wcet_cycles = wcet_cycles.unwrap();
+                let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
 
-            Some(Task {
-                name: tc.name.clone(),
-                function: tc.function.clone(),
-                wcet_cycles,
-                wcet_us,
-                period_us: Some(tc.period_us),
-                deadline_us: tc.deadline_us.or(Some(tc.period_us)),
-                priority: tc.priority,
-                preemptible: true,
-                dependencies: vec![],
+                Some(Task {
+                    name: tc.name.clone(),
+                    function: tc.function.clone(),
+                    wcet_cycles,
+                    wcet_us,
+                    period_us: Some(tc.period_us),
+                    deadline_us: tc.deadline_us.or(Some(tc.period_us)),
+                    priority: tc.priority,
+                    preemptible: true,
+                    dependencies: vec![],
                 })
             })
             .collect()
@@ -302,7 +308,7 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
 
     // Perform analysis and export
     println!("Performing schedulability analysis...");
-    
+
     // We need to parse at least one module for the export
     let first_module = IRParser::parse_file(ll_files[0].to_str().unwrap())
         .context("Failed to parse first module")?;

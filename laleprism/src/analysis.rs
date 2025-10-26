@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use lale::{
-    AnalysisReport, CortexA53Model, CortexA7Model, CortexM0Model, CortexM3Model, CortexM4Model,
-    CortexM7Model, CortexM33Model, CortexR4Model, CortexR5Model, IRParser, PlatformModel,
+    AnalysisReport, CortexA53Model, CortexA7Model, CortexM0Model, CortexM33Model, CortexM3Model,
+    CortexM4Model, CortexM7Model, CortexR4Model, CortexR5Model, IRParser, PlatformModel,
     RV32GCModel, RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy, Task, WCETAnalyzer,
 };
 use serde::{Deserialize, Serialize};

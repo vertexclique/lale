@@ -91,7 +91,11 @@ impl ScheduleStorage {
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("json")
-                && path.file_stem().and_then(|s| s.to_str()).map(|s| !s.ends_with(".meta")).unwrap_or(false)
+                && path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| !s.ends_with(".meta"))
+                    .unwrap_or(false)
             {
                 // Try to load metadata
                 let id = path.file_stem().unwrap().to_str().unwrap();

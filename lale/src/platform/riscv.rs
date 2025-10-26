@@ -86,9 +86,18 @@ impl RV32IMACModel {
 
         // Memory access
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 2));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 2));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(2, 3));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(2, 3));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 2),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(2, 3),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(2, 3),
+        );
 
         // Control flow (C extension for compressed instructions)
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));
@@ -140,9 +149,18 @@ impl RV32GCModel {
 
         // Memory access (with cache)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 3));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 3));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 5));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 5));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 3),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 5),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 5),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));
@@ -194,9 +212,18 @@ impl RV64GCModel {
 
         // Memory access (with cache)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 4));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 4));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 6));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 6));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 4),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 6),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 6),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));

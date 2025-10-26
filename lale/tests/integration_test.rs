@@ -1,7 +1,7 @@
+use ahash::AHashMap;
 use lale::analysis::LoopBounds;
 use lale::*;
 use petgraph::visit::EdgeRef;
-use ahash::AHashMap;
 
 /// Test complete WCET analysis pipeline
 #[test]

@@ -1,7 +1,7 @@
 use crate::scheduling::rma::SchedulabilityResult;
 use crate::scheduling::{static_gen::ScheduleTimeline, Task};
-use serde::{Deserialize, Serialize};
 use ahash::AHashMap;
+use serde::{Deserialize, Serialize};
 
 /// Complete analysis report
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -8,13 +8,12 @@ pub struct ConfigLoader;
 impl ConfigLoader {
     /// Load complete platform configuration from file
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<PlatformConfiguration, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read config file: {}", e))?;
-        
-        toml::from_str(&content)
-            .map_err(|e| format!("Failed to parse config: {}", e))
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read config file: {}", e))?;
+
+        toml::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
     }
-    
+
     /// Load configuration with hierarchical composition
     /// Loads ISA → Core → SoC → Board in sequence
     pub fn load_hierarchical(
@@ -25,20 +24,20 @@ impl ConfigLoader {
     ) -> Result<PlatformConfiguration, String> {
         // Load ISA config
         let isa: ISAConfig = Self::load_toml(isa_path)?;
-        
+
         // Load Core config
         let core: CoreConfig = Self::load_toml(core_path)?;
-        
+
         // Load optional SoC config
         let soc = soc_path
             .map(|path| Self::load_toml::<SoCConfig>(path))
             .transpose()?;
-        
+
         // Load optional Board config
         let board = board_path
             .map(|path| Self::load_toml::<BoardConfig>(path))
             .transpose()?;
-        
+
         Ok(PlatformConfiguration {
             isa,
             core,
@@ -46,20 +45,21 @@ impl ConfigLoader {
             board,
         })
     }
-    
+
     /// Load TOML file
     fn load_toml<T: serde::de::DeserializeOwned>(path: &str) -> Result<T, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read {}: {}", path, e))?;
-        
-        toml::from_str(&content)
-            .map_err(|e| format!("Failed to parse {}: {}", path, e))
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+
+        toml::from_str(&content).map_err(|e| format!("Failed to parse {}: {}", path, e))
     }
-    
+
     /// Convert to microarch PlatformConfig
-    pub fn to_platform_config(config: &PlatformConfiguration) -> crate::microarch::state::PlatformConfig {
+    pub fn to_platform_config(
+        config: &PlatformConfiguration,
+    ) -> crate::microarch::state::PlatformConfig {
         use crate::microarch::state::*;
-        
+
         crate::microarch::state::PlatformConfig {
             pipeline_depth: config.core.pipeline.stages,
             cache_config: CacheConfig {
@@ -76,8 +76,12 @@ impl ConfigLoader {
                         },
                     }
                 }),
-                data_cache: config.core.cache.data_cache.as_ref().map(|c| {
-                    CacheLevelConfig {
+                data_cache: config
+                    .core
+                    .cache
+                    .data_cache
+                    .as_ref()
+                    .map(|c| CacheLevelConfig {
                         size_kb: c.size_kb,
                         line_size_bytes: c.line_size_bytes,
                         associativity: c.associativity,
@@ -87,8 +91,7 @@ impl ConfigLoader {
                             super::types::ReplacementPolicy::FIFO => ReplacementPolicy::FIFO,
                             super::types::ReplacementPolicy::Random => ReplacementPolicy::LRU,
                         },
-                    }
-                }),
+                    }),
             },
             memory_config: MemoryConfig {
                 load_buffer_size: config.core.memory.load_buffer_size,
@@ -98,7 +101,10 @@ impl ConfigLoader {
                         MemoryLatency::Fixed { cycles: *cycles }
                     }
                     super::types::MemoryLatencyConfig::Variable { min, max } => {
-                        MemoryLatency::Variable { min: *min, max: *max }
+                        MemoryLatency::Variable {
+                            min: *min,
+                            max: *max,
+                        }
                     }
                 },
             },
@@ -109,11 +115,11 @@ impl ConfigLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_to_platform_config() {
         use crate::config::types::ReplacementPolicy;
-        
+
         let config = PlatformConfiguration {
             isa: ISAConfig {
                 name: "armv7e-m".to_string(),
@@ -146,7 +152,7 @@ mod tests {
             soc: None,
             board: None,
         };
-        
+
         let platform_config = ConfigLoader::to_platform_config(&config);
         assert_eq!(platform_config.pipeline_depth, 3);
     }

@@ -1,6 +1,6 @@
+use ahash::AHashMap;
 use llvm_ir::Module;
 use serde::{Deserialize, Serialize};
-use ahash::AHashMap;
 
 /// Real-time task model
 #[derive(Debug, Clone, Serialize, Deserialize)]

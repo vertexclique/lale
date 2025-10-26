@@ -33,8 +33,14 @@ impl CortexR4Model {
         // Memory access (tightly-coupled memory)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::new(1));
         timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::new(1));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 3));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 3));
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 3),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 3),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));
@@ -86,9 +92,18 @@ impl CortexR5Model {
 
         // Memory access (with cache)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 2));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 2));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 4));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 4));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 2),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 4),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 4),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));
@@ -140,9 +155,18 @@ impl CortexA7Model {
 
         // Memory access (with L1/L2 cache)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 5));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 5));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 10));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 10));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 5),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 10),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 10),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));
@@ -194,9 +218,18 @@ impl CortexA53Model {
 
         // Memory access (with L1/L2 cache)
         timings.insert(InstructionClass::Load(AccessType::Ram), Cycles::range(1, 6));
-        timings.insert(InstructionClass::Store(AccessType::Ram), Cycles::range(1, 6));
-        timings.insert(InstructionClass::Load(AccessType::Flash), Cycles::range(1, 12));
-        timings.insert(InstructionClass::Store(AccessType::Flash), Cycles::range(1, 12));
+        timings.insert(
+            InstructionClass::Store(AccessType::Ram),
+            Cycles::range(1, 6),
+        );
+        timings.insert(
+            InstructionClass::Load(AccessType::Flash),
+            Cycles::range(1, 12),
+        );
+        timings.insert(
+            InstructionClass::Store(AccessType::Flash),
+            Cycles::range(1, 12),
+        );
 
         // Control flow
         timings.insert(InstructionClass::Branch, Cycles::range(1, 2));

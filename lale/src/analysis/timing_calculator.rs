@@ -1,9 +1,9 @@
 use crate::analysis::timing::{classify_instruction, Cycles, InstructionClass};
 use crate::ir::CFG;
 use crate::platform::PlatformModel;
+use ahash::AHashMap;
 use llvm_ir::Function;
 use petgraph::graph::NodeIndex;
-use ahash::AHashMap;
 
 /// Calculate timing for basic blocks in a CFG
 pub struct TimingCalculator;

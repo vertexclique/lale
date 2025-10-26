@@ -1,6 +1,6 @@
+use ahash::AHashMap;
 use llvm_ir::{Instruction, Module};
 use petgraph::graph::{DiGraph, NodeIndex};
-use ahash::AHashMap;
 
 /// Call graph representing function call relationships
 pub struct CallGraph {

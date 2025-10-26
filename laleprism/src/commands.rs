@@ -2,8 +2,8 @@ use crate::analysis::{self, AnalysisConfig, PlatformInfo};
 use crate::demangler::{self, DemangledName};
 use crate::storage::{ScheduleMetadata, ScheduleStorage, StorageStats};
 use lale::AnalysisReport;
-use tauri::State;
 use std::sync::Mutex;
+use tauri::State;
 
 /// Application state
 pub struct AppState {
@@ -51,7 +51,9 @@ pub fn save_schedule(
     name: Option<String>,
 ) -> Result<String, String> {
     let storage = state.storage.lock().unwrap();
-    storage.save_schedule(&report, name).map_err(|e| e.to_string())
+    storage
+        .save_schedule(&report, name)
+        .map_err(|e| e.to_string())
 }
 
 /// Load a schedule by ID

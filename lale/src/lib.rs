@@ -13,10 +13,9 @@ pub use analysis::{Cycles, IPETSolver, LoopAnalyzer, TimingCalculator};
 pub use ir::{CallGraph, IRParser, CFG};
 pub use output::{AnalysisReport, GanttOutput, GraphvizOutput, JSONOutput};
 pub use platform::{
-    CortexM0Model, CortexM3Model, CortexM4Model, CortexM7Model, CortexM33Model,
-    CortexR4Model, CortexR5Model, CortexA7Model, CortexA53Model,
-    RV32IModel, RV32IMACModel, RV32GCModel, RV64GCModel,
-    PlatformModel,
+    CortexA53Model, CortexA7Model, CortexM0Model, CortexM33Model, CortexM3Model, CortexM4Model,
+    CortexM7Model, CortexR4Model, CortexR5Model, PlatformModel, RV32GCModel, RV32IMACModel,
+    RV32IModel, RV64GCModel,
 };
 pub use scheduling::{
     EDFScheduler, RMAScheduler, SchedulabilityResult, StaticScheduleGenerator, Task, TaskExtractor,
@@ -61,10 +60,7 @@ impl WCETAnalyzer {
     }
 
     /// Analyze entire module
-    pub fn analyze_module(
-        &self,
-        module: &llvm_ir::Module,
-    ) -> ahash::AHashMap<String, u64> {
+    pub fn analyze_module(&self, module: &llvm_ir::Module) -> ahash::AHashMap<String, u64> {
         let mut results = ahash::AHashMap::new();
 
         for function in &module.functions {

@@ -8,6 +8,8 @@ pub mod types;
 pub use lru::{LRUCache, LRUStack};
 pub use may::{MayAnalysis, MayCacheState};
 pub use must::{MustAnalysis, MustCacheState};
-pub use persistence::{PersistenceAnalysis, PersistentBlocks, LoopPersistence, CacheAnalysisResult, CacheAccessClass};
-pub use state::{CacheState, AbstractCache};
-pub use types::{CacheSet, Age, MemoryBlock, AccessClassification};
+pub use persistence::{
+    CacheAccessClass, CacheAnalysisResult, LoopPersistence, PersistenceAnalysis, PersistentBlocks,
+};
+pub use state::{AbstractCache, CacheState};
+pub use types::{AccessClassification, Age, CacheSet, MemoryBlock};

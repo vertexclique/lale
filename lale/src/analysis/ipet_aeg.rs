@@ -34,6 +34,9 @@ impl AEGIPETSolver {
         // Step 3: Start building problem with constraints
         let mut problem = vars.maximise(objective.clone()).using(default_solver);
 
+        // Predefined determinism
+        problem.set_parameter("randomSeed", "42");
+
         // Suppress solver output
         problem.set_parameter("loglevel", "0");
 

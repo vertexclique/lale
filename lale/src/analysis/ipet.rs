@@ -35,6 +35,9 @@ impl IPETSolver {
         // Step 3: Start building problem with constraints
         let mut problem = vars.maximise(objective.clone()).using(default_solver);
 
+        // Predefined determinism
+        problem.set_parameter("randomSeed", "42");
+
         // Suppress output. Carry me back home.
         problem.set_parameter("loglevel", "0");
 
@@ -114,6 +117,8 @@ impl IPETSolver {
             .sum();
 
         let mut problem = vars.maximise(objective).using(default_solver);
+        // Predefined determinism
+        problem.set_parameter("randomSeed", "42");
         problem.set_parameter("loglevel", "0");
         problem = problem.with(constraint!(block_vars[&cfg.entry] == 1));
 

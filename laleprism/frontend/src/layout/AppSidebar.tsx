@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router";
 // Assume these icons are imported from an icon library
 import {
   ChevronDownIcon,
-  PieChartIcon,
+  BoltIcon,
+  BoxCubeIcon,
   TableIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -19,9 +20,14 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
+    icon: <BoltIcon />,
     name: "New Analysis",
     path: "/schedule/analysis",
+  },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Configuration",
+    path: "/configuration",
   },
   {
     icon: <TableIcon />,

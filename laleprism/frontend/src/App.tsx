@@ -78,6 +78,7 @@ import ApiKeys from "./pages/OtherPage/ApiKeys";
 import ScheduleAnalysis from "./pages/ScheduleAnalysis";
 import ScheduleHistory from "./pages/ScheduleHistory";
 import ScheduleView from "./pages/ScheduleView";
+import Configuration from "./pages/Configuration";
 
 export default function App() {
   return (
@@ -126,6 +127,7 @@ export default function App() {
             <Route path="/schedule/analysis" element={<ScheduleAnalysis />} />
             <Route path="/schedule/history" element={<ScheduleHistory />} />
             <Route path="/schedule/view" element={<ScheduleView />} />
+            <Route path="/configuration" element={<Configuration />} />
 
             {/* Forms */}
             <Route path="/form-elements" element={<FormElements />} />

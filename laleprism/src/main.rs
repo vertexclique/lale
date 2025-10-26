@@ -34,6 +34,9 @@ fn main() {
             commands::pick_directory,
             commands::get_app_version,
             commands::health_check,
+            commands::list_board_configs,
+            commands::validate_board_config,
+            commands::export_board_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

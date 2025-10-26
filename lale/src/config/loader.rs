@@ -201,19 +201,15 @@ impl ConfigManager {
     }
 
     /// List available platforms
+    /// Only returns complete platform configurations (those in platforms/ directory)
+    /// Core configs are incomplete and meant to be referenced by platforms
     pub fn list_platforms(&self) -> Result<Vec<String>, String> {
         let mut platforms = Vec::new();
 
-        // Scan platforms directory
+        // Only scan platforms directory - these are complete configurations
         let platforms_dir = self.config_dir.join("platforms");
         if platforms_dir.exists() {
             self.scan_directory(&platforms_dir, "platforms", &mut platforms)?;
-        }
-
-        // Scan cores directory
-        let cores_dir = self.config_dir.join("cores");
-        if cores_dir.exists() {
-            self.scan_directory(&cores_dir, "cores", &mut platforms)?;
         }
 
         Ok(platforms)

@@ -1,4 +1,4 @@
-<h1 align="center"><img src="art/lale_banner.png"/></h1>
+<h1 align="center"><img src="https://raw.githubusercontent.com/vertexclique/lale/refs/heads/master/art/lale_banner.png"/></h1>
 <div align="center">
  <strong>
     LALE (LLVM Analysis Latency Engine)

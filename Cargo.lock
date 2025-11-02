@@ -1963,6 +1963,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "inkwell"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e67349bd7578d4afebbe15eaa642a80b884e8623db74b1716611b131feb1deef"
+dependencies = [
+ "either",
+ "inkwell_internals",
+ "libc",
+ "llvm-sys 181.2.0",
+ "once_cell",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "inkwell_internals"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f365c8de536236cfdebd0ba2130de22acefed18b1fb99c32783b3840aec5fb46"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "io-uring"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2148,6 +2173,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "good_lp",
+ "inkwell",
  "llvm-ir",
  "petgraph",
  "serde",
@@ -2268,7 +2294,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a44e38b5a8002de59bc4c5717f5f07dcf8f132d1281bb7be1befdeda1b943438"
 dependencies = [
  "either",
- "llvm-sys",
+ "llvm-sys 170.2.0",
  "log",
  "ordered-float",
 ]
@@ -2278,6 +2304,20 @@ name = "llvm-sys"
 version = "170.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff1ee92492ae76bb6e24495ce15e311ba13ffb58c0140d89ac9910b92477cec8"
+dependencies = [
+ "anyhow",
+ "cc",
+ "lazy_static",
+ "libc",
+ "regex-lite",
+ "semver",
+]
+
+[[package]]
+name = "llvm-sys"
+version = "181.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d320f9d2723c97d4b78f9190a61ed25cc7cfbe456668c08e6e7dd8e50ceb8500"
 dependencies = [
  "anyhow",
  "cc",

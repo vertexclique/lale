@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 llvm-ir.workspace = true
+inkwell.workspace = true
 petgraph.workspace = true
 serde.workspace = true
 serde_json.workspace = true

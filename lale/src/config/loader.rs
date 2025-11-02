@@ -304,7 +304,7 @@ impl ConfigManager {
                     let r1_end = r1.start + r1.size;
                     let r2_end = r2.start + r2.size;
 
-                    if (r1.start < r2_end && r1_end > r2.start) {
+                    if r1.start < r2_end && r1_end > r2.start {
                         errors.push(format!(
                             "Memory regions '{}' and '{}' overlap",
                             r1.name, r2.name

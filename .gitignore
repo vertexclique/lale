@@ -1,3 +1,9 @@
 /target
 data/
 *schedule.json
+
+# RAL
+ral/
+ral/*.rmeta
+ral/*.rlib
+ral/*.d

@@ -1,5 +1,6 @@
 pub mod aeg;
 pub mod analysis;
+pub mod async_analysis;
 pub mod config;
 pub mod ir;
 pub mod microarch;
@@ -10,6 +11,12 @@ pub mod wcet;
 
 // Re-export commonly used types
 pub use analysis::{Cycles, IPETSolver, LoopAnalyzer, TimingCalculator};
+pub use async_analysis::{
+    Actor, ActorConfig, ActorConfigEntry, ActorConfigLoader, ActorSegment, ActorSystem,
+    ActorSystemConfig, AsyncDetector, AsyncFunctionInfo, DetectionMethod, InkwellAsyncDetector,
+    SchedulingPolicy, SegmentExtractor, SegmentType, SegmentWCET, SegmentWCETAnalyzer, StateBlock,
+    VeecleActor, VeecleMetadata, VeecleModel, VeecleService,
+};
 pub use ir::{CallGraph, IRParser, CFG};
 pub use output::{AnalysisReport, GanttOutput, GraphvizOutput, JSONOutput};
 pub use platform::{
@@ -20,15 +27,6 @@ pub use platform::{
 pub use scheduling::{
     EDFScheduler, RMAScheduler, SchedulabilityResult, StaticScheduleGenerator, Task, TaskExtractor,
 };
-
-/// Scheduling policy selection
-#[derive(Debug, Clone, Copy)]
-pub enum SchedulingPolicy {
-    /// Rate Monotonic Analysis
-    RMA,
-    /// Earliest Deadline First
-    EDF,
-}
 
 /// LALE version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -82,15 +80,15 @@ impl WCETAnalyzer {
         &self,
         module: &llvm_ir::Module,
         tasks: Vec<Task>,
-        scheduling_policy: SchedulingPolicy,
+        scheduling_policy: async_analysis::SchedulingPolicy,
     ) -> anyhow::Result<String> {
         // 1. Analyze WCET for all functions
         let wcet_results = self.analyze_module(module);
 
         // 2. Perform schedulability analysis
         let schedulability = match scheduling_policy {
-            SchedulingPolicy::RMA => RMAScheduler::schedulability_test(&tasks),
-            SchedulingPolicy::EDF => EDFScheduler::schedulability_test(&tasks),
+            async_analysis::SchedulingPolicy::RMA => RMAScheduler::schedulability_test(&tasks),
+            async_analysis::SchedulingPolicy::EDF => EDFScheduler::schedulability_test(&tasks),
         };
 
         // 3. Generate static schedule if schedulable
@@ -120,7 +118,7 @@ impl WCETAnalyzer {
         &self,
         module: &llvm_ir::Module,
         tasks: Vec<Task>,
-        scheduling_policy: SchedulingPolicy,
+        scheduling_policy: async_analysis::SchedulingPolicy,
         output_path: &str,
     ) -> anyhow::Result<()> {
         let json = self.analyze_and_export_schedule(module, tasks, scheduling_policy)?;

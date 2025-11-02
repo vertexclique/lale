@@ -2,6 +2,7 @@ use crate::analysis::{Cycles, InstructionClass};
 use ahash::AHashMap;
 
 /// Platform timing model (placeholder for Phase 3)
+#[derive(Clone)]
 pub struct PlatformModel {
     pub name: String,
     pub cpu_frequency_mhz: u32,

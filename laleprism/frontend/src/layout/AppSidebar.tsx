@@ -7,6 +7,8 @@ import {
   BoltIcon,
   BoxCubeIcon,
   TableIcon,
+  ShootingStarIcon,
+  PaperPlaneIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 
@@ -23,6 +25,18 @@ const navItems: NavItem[] = [
     icon: <BoltIcon />,
     name: "New Analysis",
     path: "/schedule/analysis",
+  },
+  {
+    icon: <PaperPlaneIcon />,
+    name: "Multicore Analysis",
+    path: "/multicore-analysis",
+    new: true,
+  },
+  {
+    icon: <ShootingStarIcon />,
+    name: "Actor Project",
+    path: "/actor-project-analysis",
+    new: true,
   },
   {
     icon: <BoxCubeIcon />,

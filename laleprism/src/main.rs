@@ -37,6 +37,8 @@ fn main() {
             commands::list_board_configs,
             commands::validate_board_config,
             commands::export_board_config,
+            commands::analyze_multicore,
+            commands::analyze_veecle_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

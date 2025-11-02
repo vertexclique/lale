@@ -198,3 +198,154 @@ pub struct SoCInfo {
     pub cpu_frequency_mhz: u32,
     pub memory_regions: usize,
 }
+
+/// Analyze multicore schedulability
+#[tauri::command]
+pub async fn analyze_multicore(
+    ir_directory: String,
+    num_cores: usize,
+    policy: String,
+    platform: String,
+) -> Result<lale::MultiCoreResult, String> {
+    use lale::{
+        Actor, ActorConfigLoader, IRParser, InkwellAsyncDetector, MultiCoreScheduler,
+        SchedulingPolicy, SegmentExtractor, SegmentWCETAnalyzer,
+    };
+    use std::path::{Path, PathBuf};
+
+    // Parse policy
+    let scheduling_policy = match policy.as_str() {
+        "RMA" => SchedulingPolicy::RMA,
+        "EDF" => SchedulingPolicy::EDF,
+        _ => return Err(format!("Invalid scheduling policy: {}", policy)),
+    };
+
+    // Get config directory from current working directory
+    let config_dir = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?
+        .join("config");
+
+    if !config_dir.exists() {
+        return Err(format!(
+            "Config directory not found at: {}. Please run from the lale project root directory.",
+            config_dir.display()
+        ));
+    }
+
+    // Load platform
+    let mut config_loader = ActorConfigLoader::new(config_dir);
+    let platform_model = config_loader.load_platform_model(&platform)?;
+
+    // Scan IR directory for actors
+    let ir_path = Path::new(&ir_directory);
+    let mut actors = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(ir_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                // Detect async functions
+                if let Ok(async_funcs) = InkwellAsyncDetector::detect_from_file(&path) {
+                    for async_info in async_funcs {
+                        // Parse module
+                        if let Ok(module) = IRParser::parse_file(&path) {
+                            if let Some(function) = module
+                                .functions
+                                .iter()
+                                .find(|f| f.name.to_string() == async_info.function_name)
+                            {
+                                // Extract segments
+                                let segments =
+                                    SegmentExtractor::extract_segments(function, &async_info);
+
+                                // Analyze WCET
+                                let analyzer = SegmentWCETAnalyzer::new(platform_model.clone());
+                                let wcets = analyzer.analyze_segments(function, &segments);
+
+                                // Create actor
+                                let mut actor = Actor::new(
+                                    async_info.function_name.clone(),
+                                    async_info.function_name.clone(),
+                                    10,
+                                    100.0,
+                                    Some(50.0),
+                                    Some(actors.len() % num_cores),
+                                );
+
+                                actor.segments = segments;
+                                actor.segment_wcets = wcets
+                                    .into_iter()
+                                    .map(|(id, w)| (id, w.wcet_cycles))
+                                    .collect();
+                                actor.compute_actor_wcet(platform_model.cpu_frequency_mhz);
+
+                                actors.push(actor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Perform multicore analysis
+    let scheduler = MultiCoreScheduler::new(num_cores, scheduling_policy);
+    let result = scheduler.analyze(&actors);
+
+    Ok(result)
+}
+
+/// Analyze Veecle OS project
+#[tauri::command]
+pub async fn analyze_veecle_project(
+    project_dir: String,
+    ir_directory: String,
+    platform: String,
+    num_cores: usize,
+    policy: String,
+) -> Result<VeecleProjectResult, String> {
+    use lale::{ActorConfigLoader, MultiCoreScheduler, SchedulingPolicy};
+    use std::path::PathBuf;
+
+    // Parse policy
+    let scheduling_policy = match policy.as_str() {
+        "RMA" => SchedulingPolicy::RMA,
+        "EDF" => SchedulingPolicy::EDF,
+        _ => return Err(format!("Invalid scheduling policy: {}", policy)),
+    };
+
+    // Get config directory from current working directory
+    let config_dir = std::env::current_dir()
+        .map_err(|e| format!("Failed to get current directory: {}", e))?
+        .join("config");
+
+    if !config_dir.exists() {
+        return Err(format!(
+            "Config directory not found at: {}. Please run from the lale project root directory.",
+            config_dir.display()
+        ));
+    }
+
+    // Create analyzer
+    let mut analyzer =
+        lale::ActorAnalyzer::new(config_dir.to_str().ok_or("Invalid config path")?, &platform)?;
+
+    // Analyze project
+    let (actors, schedulability) = analyzer.analyze_veecle_project(
+        &project_dir,
+        &ir_directory,
+        num_cores,
+        scheduling_policy,
+    )?;
+
+    Ok(VeecleProjectResult {
+        actors,
+        schedulability,
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct VeecleProjectResult {
+    pub actors: Vec<lale::Actor>,
+    pub schedulability: lale::MultiCoreResult,
+}

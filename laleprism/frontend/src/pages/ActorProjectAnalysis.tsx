@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 interface ActorSegment {
@@ -44,7 +44,7 @@ interface VeecleProjectResult {
 export default function ActorProjectAnalysis() {
   const [projectDir, setProjectDir] = useState('');
   const [irDirectory, setIrDirectory] = useState('');
-  const [platform, setPlatform] = useState('platforms/stm32f746-discovery');
+  const [selectedBoard, setSelectedBoard] = useState<string>('');
   const [numCores, setNumCores] = useState(2);
   const [policy, setPolicy] = useState<'RMA' | 'EDF'>('RMA');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,20 @@ export default function ActorProjectAnalysis() {
   const [error, setError] = useState<string | null>(null);
   const [selectedActor, setSelectedActor] = useState<Actor | null>(null);
 
+  // Load selected board from localStorage
+  useEffect(() => {
+    const savedBoard = localStorage.getItem('selectedBoard');
+    if (savedBoard) {
+      setSelectedBoard(savedBoard);
+    }
+  }, []);
+
   const handleAnalyze = async () => {
+    if (!selectedBoard) {
+      setError('Please select a board configuration first in Configuration page');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -62,7 +75,7 @@ export default function ActorProjectAnalysis() {
       const analysisResult = await invoke<VeecleProjectResult>('analyze_veecle_project', {
         projectDir,
         irDirectory,
-        platform,
+        platform: selectedBoard,
         numCores,
         policy,
       });
@@ -118,6 +131,49 @@ export default function ActorProjectAnalysis() {
             Complete WCET and schedulability analysis for Veecle OS actor-based projects
           </p>
         </div>
+
+        {/* Active Board Configuration */}
+        {selectedBoard && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                  Active Board Configuration
+                </p>
+                <p className="text-lg font-semibold text-blue-700 dark:text-blue-300 mt-1">
+                  {selectedBoard.replace('cores/', '').replace('platforms/', '')}
+                </p>
+              </div>
+              <a
+                href="/configuration"
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Change Configuration
+              </a>
+            </div>
+          </div>
+        )}
+
+        {!selectedBoard && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200">
+                  No Board Configuration Selected
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                  Please select a board configuration before running analysis
+                </p>
+              </div>
+              <a
+                href="/configuration"
+                className="px-4 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+              >
+                Go to Configuration
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Configuration Panel */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
@@ -182,27 +238,6 @@ export default function ActorProjectAnalysis() {
               </p>
             </div>
 
-            {/* Platform */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Target Platform
-              </label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                         bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white
-                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{ color: '#111827' }}
-              >
-                <option value="platforms/stm32f746-discovery" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>STM32F746 Discovery</option>
-                <option value="platforms/stm32f4discovery" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>STM32F4 Discovery</option>
-                <option value="platforms/raspberry-pi-pico" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>Raspberry Pi Pico</option>
-                <option value="platforms/nrf52840dk" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>nRF52840 DK</option>
-                <option value="platforms/esp32-c3-devkitm" style={{ color: '#111827', backgroundColor: '#f9fafb' }}>ESP32-C3 DevKitM</option>
-              </select>
-            </div>
-
             {/* Number of Cores */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -221,7 +256,7 @@ export default function ActorProjectAnalysis() {
             </div>
 
             {/* Scheduling Policy */}
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Scheduling Policy
               </label>

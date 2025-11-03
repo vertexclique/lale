@@ -7,8 +7,35 @@ mod demangler;
 mod storage;
 
 use commands::AppState;
+use std::sync::OnceLock;
+
+/// Store the initial working directory before Tauri changes it
+static INITIAL_CWD: OnceLock<std::path::PathBuf> = OnceLock::new();
+
+pub fn get_initial_cwd() -> &'static std::path::PathBuf {
+    INITIAL_CWD.get().expect("Initial CWD not set")
+}
 
 fn main() {
+    // Use LALE_ROOT env var if set, otherwise use current directory
+    let initial_cwd = if let Ok(lale_root) = std::env::var("LALE_ROOT") {
+        let path = std::path::PathBuf::from(lale_root);
+        eprintln!("Using LALE_ROOT from environment: {}", path.display());
+        path
+    } else {
+        let cwd = std::env::current_dir().expect("Failed to get current directory");
+        eprintln!(
+            "LALE_ROOT not set, using current directory: {}",
+            cwd.display()
+        );
+        cwd
+    };
+
+    INITIAL_CWD
+        .set(initial_cwd.clone())
+        .expect("Failed to set initial CWD");
+    eprintln!("Initial CWD set to: {}", initial_cwd.display());
+
     // Set environment variables for Linux Wayland compatibility
     #[cfg(target_os = "linux")]
     {

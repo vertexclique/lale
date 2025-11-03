@@ -60,12 +60,23 @@ impl InkwellParser {
     /// Returns (Context, Module) - caller must keep context alive
     pub fn parse_file(path: impl AsRef<Path>) -> Result<(Context, Module<'static>), String> {
         let context = Context::create();
+
+        // Read file content
+        let ir_text = std::fs::read_to_string(path.as_ref())
+            .map_err(|e| format!("Failed to read IR file: {}", e))?;
+
         // SAFETY: We return both context and module together
         // Caller must ensure context outlives module usage
         let module = unsafe {
             std::mem::transmute::<Module, Module<'static>>(
-                Module::parse_bitcode_from_path(path.as_ref(), &context)
-                    .map_err(|e| format!("Failed to parse bitcode: {:?}", e))?,
+                context
+                    .create_module_from_ir(
+                        inkwell::memory_buffer::MemoryBuffer::create_from_memory_range(
+                            ir_text.as_bytes(),
+                            path.as_ref().to_str().unwrap_or("ir_module"),
+                        ),
+                    )
+                    .map_err(|e| format!("Failed to parse IR text: {:?}", e))?,
             )
         };
 

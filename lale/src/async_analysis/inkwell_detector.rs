@@ -144,19 +144,25 @@ impl InkwellAsyncDetector {
         let mut state_id = 0u32;
 
         while i < num_operands {
+            // Try to get case value as BasicValue
             if let Some(operand) = switch_instr.get_operand(i) {
-                // Try to extract constant value
-                if let Some(const_val) = operand.left() {
-                    if let Some(int_val) = const_val.into_int_value().get_zero_extended_constant() {
-                        state_id = int_val as u32;
+                // Operand wraps Either - need to unwrap it
+                use inkwell::values::BasicValue;
+                if let Ok(basic_val) = operand.as_any_value_enum().try_into() {
+                    let basic_val: inkwell::values::BasicValueEnum = basic_val;
+                    if let inkwell::values::BasicValueEnum::IntValue(int_val) = basic_val {
+                        if let Some(const_int) = int_val.get_zero_extended_constant() {
+                            state_id = const_int as u32;
+                        }
                     }
                 }
             }
 
-            // Get label (next operand)
+            // Try to get label as BasicBlock
             if i + 1 < num_operands {
                 if let Some(label_op) = switch_instr.get_operand(i + 1) {
-                    if let Some(bb) = label_op.right() {
+                    if let Ok(bb) = label_op.as_any_value_enum().try_into() {
+                        let bb: inkwell::basic_block::BasicBlock = bb;
                         let label_name = bb.get_name().to_str().unwrap_or("").to_string();
 
                         states.push(StateBlock {

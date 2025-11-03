@@ -159,18 +159,35 @@ impl ActorAnalyzer {
         num_cores: usize,
         policy: SchedulingPolicy,
     ) -> Result<(Vec<Actor>, MultiCoreResult), String> {
-        // Load Veecle Model.toml
-        let (actor_paths, _) = self.config_loader.load_veecle_project(project_dir, "")?;
+        // Load Veecle Model.toml (platform already loaded in constructor)
+        let model_path = std::path::Path::new(project_dir).join("Model.toml");
+        eprintln!("Loading Model.toml from: {}", model_path.display());
+        let model = self.config_loader.load_veecle_model(&model_path)?;
+        let actor_paths = self.config_loader.extract_actor_paths(&model);
+
+        eprintln!("Found {} actors in Model.toml:", actor_paths.len());
+        for (name, path) in &actor_paths {
+            eprintln!("  - {} -> {}", name, path);
+        }
 
         let mut actors = Vec::new();
 
         // Analyze each actor
         for (name, path) in actor_paths {
+            eprintln!("Analyzing actor: {} (path: {})", name, path);
             // Try to find matching LLVM IR file
-            if let Ok(actor) = self.analyze_actor_from_ir(ir_dir, &name, &path) {
-                actors.push(actor);
+            match self.analyze_actor_from_ir(ir_dir, &name, &path) {
+                Ok(actor) => {
+                    eprintln!("  ✓ Successfully analyzed actor: {}", name);
+                    actors.push(actor);
+                }
+                Err(e) => {
+                    eprintln!("  ✗ Failed to analyze actor {}: {}", name, e);
+                }
             }
         }
+
+        eprintln!("Total actors analyzed: {}", actors.len());
 
         // Perform multi-core schedulability analysis
         let scheduler = MultiCoreScheduler::new(num_cores, policy);
@@ -186,61 +203,94 @@ impl ActorAnalyzer {
         actor_name: &str,
         function_path: &str,
     ) -> Result<Actor, String> {
+        eprintln!("  Searching for actor in IR directory: {}", ir_dir);
+        eprintln!("  Looking for function path: {}", function_path);
+
         // Find IR files in directory
         let ir_files =
             std::fs::read_dir(ir_dir).map_err(|e| format!("Failed to read IR directory: {}", e))?;
 
+        let mut ir_file_count = 0;
+        let mut async_func_count = 0;
+
         for entry in ir_files.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                ir_file_count += 1;
+                eprintln!("  Checking IR file: {}", path.display());
+
                 // Try to detect async functions in this file
-                if let Ok(async_funcs) = InkwellAsyncDetector::detect_from_file(&path) {
-                    for async_info in async_funcs {
-                        // Check if function matches actor path
-                        if async_info.function_name.contains(function_path)
-                            || function_path.contains(&async_info.function_name)
-                        {
-                            // Parse module to get function
-                            if let Ok(module) = IRParser::parse_file(&path) {
-                                if let Some(function) = module
-                                    .functions
-                                    .iter()
-                                    .find(|f| f.name.to_string() == async_info.function_name)
-                                {
-                                    // Extract segments
-                                    let segments =
-                                        SegmentExtractor::extract_segments(function, &async_info);
+                match InkwellAsyncDetector::detect_from_file(&path) {
+                    Ok(async_funcs) => {
+                        if !async_funcs.is_empty() {
+                            eprintln!("    Found {} async functions", async_funcs.len());
+                        }
+                        for async_info in async_funcs {
+                            async_func_count += 1;
+                            eprintln!("      - {}", async_info.function_name);
 
-                                    // Analyze WCET per segment
-                                    let analyzer = SegmentWCETAnalyzer::new(self.platform.clone());
-                                    let wcets = analyzer.analyze_segments(function, &segments);
+                            // Check if function matches actor path
+                            if async_info.function_name.contains(function_path)
+                                || function_path.contains(&async_info.function_name)
+                            {
+                                eprintln!("      ✓ MATCH! This function matches the actor path");
+                                // Parse module to get function
+                                if let Ok(module) = IRParser::parse_file(&path) {
+                                    if let Some(function) = module
+                                        .functions
+                                        .iter()
+                                        .find(|f| f.name.to_string() == async_info.function_name)
+                                    {
+                                        // Extract segments
+                                        let segments = SegmentExtractor::extract_segments(
+                                            function,
+                                            &async_info,
+                                        );
 
-                                    // Create actor
-                                    let mut actor = Actor::new(
-                                        actor_name.to_string(),
-                                        function_path.to_string(),
-                                        10,         // Default priority
-                                        100.0,      // Default deadline (ms)
-                                        Some(50.0), // Default period (ms)
-                                        Some(0),    // Default core
-                                    );
+                                        // Analyze WCET per segment
+                                        let analyzer =
+                                            SegmentWCETAnalyzer::new(self.platform.clone());
+                                        let wcets = analyzer.analyze_segments(function, &segments);
 
-                                    actor.segments = segments;
-                                    actor.segment_wcets = wcets
-                                        .into_iter()
-                                        .map(|(id, w)| (id, w.wcet_cycles))
-                                        .collect();
-                                    actor.compute_actor_wcet(self.platform.cpu_frequency_mhz);
+                                        // Create actor
+                                        let mut actor = Actor::new(
+                                            actor_name.to_string(),
+                                            function_path.to_string(),
+                                            10,         // Default priority
+                                            100.0,      // Default deadline (ms)
+                                            Some(50.0), // Default period (ms)
+                                            Some(0),    // Default core
+                                        );
 
-                                    return Ok(actor);
+                                        actor.segments = segments;
+                                        actor.segment_wcets = wcets
+                                            .into_iter()
+                                            .map(|(id, w)| (id, w.wcet_cycles))
+                                            .collect();
+                                        actor.compute_actor_wcet(self.platform.cpu_frequency_mhz);
+
+                                        return Ok(actor);
+                                    }
                                 }
                             }
+                        }
+                    }
+                    Err(e) => {
+                        // Silently skip files with parse errors (likely debug intrinsics)
+                        if e.contains("dbg_value") || e.contains("dbg_declare") {
+                            eprintln!("    Skipping (debug intrinsics)");
+                        } else {
+                            eprintln!("    Parse error: {}", e);
                         }
                     }
                 }
             }
         }
 
+        eprintln!(
+            "  Scanned {} IR files, found {} async functions total",
+            ir_file_count, async_func_count
+        );
         Err(format!("Could not find LLVM IR for actor: {}", actor_name))
     }
 }

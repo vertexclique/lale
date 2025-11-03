@@ -108,11 +108,18 @@ pub fn health_check() -> String {
 #[tauri::command]
 pub fn list_board_configs() -> Result<Vec<String>, String> {
     use lale::config::ConfigManager;
-    use std::path::PathBuf;
 
-    let config_dir = PathBuf::from("config");
+    let initial_cwd = crate::get_initial_cwd();
+    let config_dir = initial_cwd.join("config");
+
+    if !config_dir.exists() {
+        return Err(format!(
+            "Config directory not found at: {}",
+            config_dir.display()
+        ));
+    }
+
     let manager = ConfigManager::new(config_dir);
-
     manager.list_platforms().map_err(|e| e.to_string())
 }
 
@@ -120,9 +127,17 @@ pub fn list_board_configs() -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn validate_board_config(board_name: String) -> Result<BoardConfigDetails, String> {
     use lale::config::ConfigManager;
-    use std::path::PathBuf;
 
-    let config_dir = PathBuf::from("config");
+    let initial_cwd = crate::get_initial_cwd();
+    let config_dir = initial_cwd.join("config");
+
+    if !config_dir.exists() {
+        return Err(format!(
+            "Config directory not found at: {}",
+            config_dir.display()
+        ));
+    }
+
     let mut manager = ConfigManager::new(config_dir);
 
     let config = manager
@@ -162,9 +177,17 @@ pub fn validate_board_config(board_name: String) -> Result<BoardConfigDetails, S
 #[tauri::command]
 pub fn export_board_config(board_name: String) -> Result<String, String> {
     use lale::config::ConfigManager;
-    use std::path::PathBuf;
 
-    let config_dir = PathBuf::from("config");
+    let initial_cwd = crate::get_initial_cwd();
+    let config_dir = initial_cwd.join("config");
+
+    if !config_dir.exists() {
+        return Err(format!(
+            "Config directory not found at: {}",
+            config_dir.display()
+        ));
+    }
+
     let mut manager = ConfigManager::new(config_dir);
 
     let config = manager
@@ -220,14 +243,13 @@ pub async fn analyze_multicore(
         _ => return Err(format!("Invalid scheduling policy: {}", policy)),
     };
 
-    // Get config directory from current working directory
-    let config_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current directory: {}", e))?
-        .join("config");
+    // Use the initial CWD captured at startup (before Tauri changed it)
+    let initial_cwd = crate::get_initial_cwd();
+    let config_dir = initial_cwd.join("config");
 
     if !config_dir.exists() {
         return Err(format!(
-            "Config directory not found at: {}. Please run from the lale project root directory.",
+            "Config directory not found at: {}. Please run from a directory containing a 'config' subdirectory.",
             config_dir.display()
         ));
     }
@@ -307,6 +329,14 @@ pub async fn analyze_veecle_project(
     use lale::{ActorConfigLoader, MultiCoreScheduler, SchedulingPolicy};
     use std::path::PathBuf;
 
+    // Debug logging
+    eprintln!("=== analyze_veecle_project DEBUG ===");
+    eprintln!("project_dir: {}", project_dir);
+    eprintln!("ir_directory: {}", ir_directory);
+    eprintln!("platform: {}", platform);
+    eprintln!("num_cores: {}", num_cores);
+    eprintln!("policy: {}", policy);
+
     // Parse policy
     let scheduling_policy = match policy.as_str() {
         "RMA" => SchedulingPolicy::RMA,
@@ -314,23 +344,40 @@ pub async fn analyze_veecle_project(
         _ => return Err(format!("Invalid scheduling policy: {}", policy)),
     };
 
-    // Get config directory from current working directory
-    let config_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current directory: {}", e))?
-        .join("config");
+    // Use the initial CWD captured at startup (before Tauri changed it)
+    let initial_cwd = crate::get_initial_cwd();
+    eprintln!("Using initial CWD: {}", initial_cwd.display());
+
+    let config_dir = initial_cwd.join("config");
+    eprintln!("Config directory: {}", config_dir.display());
+    eprintln!("Config directory exists: {}", config_dir.exists());
 
     if !config_dir.exists() {
         return Err(format!(
-            "Config directory not found at: {}. Please run from the lale project root directory.",
+            "Config directory not found at: {}. Please run from a directory containing a 'config' subdirectory.",
             config_dir.display()
         ));
     }
 
+    let config_dir_str = config_dir.to_str().ok_or("Invalid config path")?;
+    eprintln!("Config directory string: {}", config_dir_str);
+    eprintln!("Platform parameter: {}", platform);
+
     // Create analyzer
-    let mut analyzer =
-        lale::ActorAnalyzer::new(config_dir.to_str().ok_or("Invalid config path")?, &platform)?;
+    eprintln!("Creating ActorAnalyzer...");
+    let mut analyzer = match lale::ActorAnalyzer::new(config_dir_str, &platform) {
+        Ok(a) => {
+            eprintln!("ActorAnalyzer created successfully");
+            a
+        }
+        Err(e) => {
+            eprintln!("ActorAnalyzer creation failed: {}", e);
+            return Err(format!("Failed to create analyzer: {}", e));
+        }
+    };
 
     // Analyze project
+    eprintln!("Starting project analysis...");
     let (actors, schedulability) = analyzer.analyze_veecle_project(
         &project_dir,
         &ir_directory,
@@ -338,9 +385,15 @@ pub async fn analyze_veecle_project(
         scheduling_policy,
     )?;
 
+    eprintln!(
+        "Analysis completed successfully. Found {} actors",
+        actors.len()
+    );
+
     Ok(VeecleProjectResult {
         actors,
         schedulability,
+        parse_errors: vec![], // TODO: Collect parse errors from analysis
     })
 }
 
@@ -348,4 +401,11 @@ pub async fn analyze_veecle_project(
 pub struct VeecleProjectResult {
     pub actors: Vec<lale::Actor>,
     pub schedulability: lale::MultiCoreResult,
+    pub parse_errors: Vec<ParseError>,
+}
+
+#[derive(serde::Serialize)]
+pub struct ParseError {
+    pub file: String,
+    pub error: String,
 }

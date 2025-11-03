@@ -11,6 +11,7 @@ name = "lale"
 path = "src/main.rs"
 
 [dependencies]
+either.workspace = true
 llvm-ir.workspace = true
 inkwell.workspace = true
 petgraph.workspace = true

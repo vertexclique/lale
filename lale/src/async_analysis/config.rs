@@ -241,8 +241,16 @@ impl ActorConfigLoader {
 
     /// Load Veecle OS Model.toml
     pub fn load_veecle_model(&self, path: impl AsRef<Path>) -> Result<VeecleModel, String> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read Model.toml: {}", e))?;
+        let path_ref = path.as_ref();
+        eprintln!("Attempting to read Model.toml from: {}", path_ref.display());
+
+        let content = std::fs::read_to_string(path_ref).map_err(|e| {
+            format!(
+                "Failed to read Model.toml from {}: {}",
+                path_ref.display(),
+                e
+            )
+        })?;
 
         toml::from_str(&content).map_err(|e| format!("Failed to parse Model.toml: {}", e))
     }

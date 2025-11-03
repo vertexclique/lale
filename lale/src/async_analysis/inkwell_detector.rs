@@ -3,6 +3,7 @@
 //! Detects Rust async functions by analyzing LLVM IR via inkwell API.
 //! Supports modern LLVM versions (18+) that llvm-ir crate cannot parse.
 
+use either::Either;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::values::{FunctionValue, InstructionOpcode};
@@ -135,49 +136,59 @@ impl InkwellAsyncDetector {
     fn extract_switch_cases(switch_instr: &inkwell::values::InstructionValue) -> Vec<StateBlock> {
         let mut states = Vec::new();
 
-        // Get number of operands (switch has: condition + default + cases)
-        let num_operands = switch_instr.get_num_operands();
+        // Get the parent basic block and then the parent function
+        let parent_bb = switch_instr
+            .get_parent()
+            .expect("Switch must have parent block");
+        let function = parent_bb
+            .get_parent()
+            .expect("Block must have parent function");
 
-        // Skip first 2 operands (condition and default label)
-        // Then iterate pairs: (case_value, case_label)
-        let mut i = 2;
+        // Get all basic blocks in the function
+        let all_blocks: Vec<_> = function.get_basic_block_iter().collect();
+
+        // The switch successors are the state blocks
+        // We'll identify them by analyzing block names and predecessors
         let mut state_id = 0u32;
 
-        while i < num_operands {
-            // Try to get case value as BasicValue
-            if let Some(operand) = switch_instr.get_operand(i) {
-                // Operand wraps Either - need to unwrap it
-                use inkwell::values::BasicValue;
-                if let Ok(basic_val) = operand.as_any_value_enum().try_into() {
-                    let basic_val: inkwell::values::BasicValueEnum = basic_val;
-                    if let inkwell::values::BasicValueEnum::IntValue(int_val) = basic_val {
-                        if let Some(const_int) = int_val.get_zero_extended_constant() {
-                            state_id = const_int as u32;
-                        }
-                    }
+        for block in &all_blocks {
+            let block_name = block.get_name().to_str().unwrap_or("");
+
+            // State blocks typically have names like "bb3", "bb4", etc. in async lowering
+            // or may contain patterns like "state" or numeric suffixes
+            if block_name.starts_with("bb") && block_name.len() > 2 {
+                // Try to extract state ID from block name
+                if let Ok(id) = block_name[2..].parse::<u32>() {
+                    state_id = id;
                 }
+
+                states.push(StateBlock {
+                    state_id,
+                    entry_block: block_name.to_string(),
+                    reachable_blocks: vec![block_name.to_string()],
+                });
+
+                state_id += 1;
             }
-
-            // Try to get label as BasicBlock
-            if i + 1 < num_operands {
-                if let Some(label_op) = switch_instr.get_operand(i + 1) {
-                    if let Ok(bb) = label_op.as_any_value_enum().try_into() {
-                        let bb: inkwell::basic_block::BasicBlock = bb;
-                        let label_name = bb.get_name().to_str().unwrap_or("").to_string();
-
-                        states.push(StateBlock {
-                            state_id,
-                            entry_block: label_name.clone(),
-                            reachable_blocks: vec![label_name],
-                        });
-                    }
-                }
-            }
-
-            i += 2; // Move to next case pair
         }
 
-        states.sort_by_key(|s| s.state_id);
+        // If no states found by naming pattern, enumerate all blocks after entry
+        if states.is_empty() {
+            state_id = 0;
+            for block in all_blocks.iter().skip(1) {
+                // Skip entry block
+                let block_name = block.get_name().to_str().unwrap_or("");
+                if !block_name.is_empty() {
+                    states.push(StateBlock {
+                        state_id,
+                        entry_block: block_name.to_string(),
+                        reachable_blocks: vec![block_name.to_string()],
+                    });
+                    state_id += 1;
+                }
+            }
+        }
+
         states
     }
 

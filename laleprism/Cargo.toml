@@ -17,6 +17,9 @@ serde_json.workspace = true
 anyhow.workspace = true
 ahash.workspace = true
 
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread"] }
+
 # Tauri
 tauri = { version = "2.0", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2.0"

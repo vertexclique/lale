@@ -376,14 +376,20 @@ pub async fn analyze_veecle_project(
         }
     };
 
-    // Analyze project
-    eprintln!("Starting project analysis...");
-    let (actors, schedulability) = analyzer.analyze_veecle_project(
-        &project_dir,
-        &ir_directory,
-        num_cores,
-        scheduling_policy,
-    )?;
+    // Run analysis in blocking task to avoid blocking the GUI
+    eprintln!("Starting project analysis in background...");
+    let result = tokio::task::spawn_blocking(move || {
+        analyzer.analyze_veecle_project(
+            &project_dir,
+            &ir_directory,
+            num_cores,
+            scheduling_policy,
+        )
+    })
+    .await
+    .map_err(|e| format!("Analysis task failed: {}", e))??;
+
+    let (actors, schedulability) = result;
 
     eprintln!(
         "Analysis completed successfully. Found {} actors",

@@ -5,17 +5,15 @@
 
 pub mod actor;
 pub mod config;
-pub mod detector;
 pub mod inkwell_detector;
-pub mod segment;
-pub mod wcet;
+pub mod inkwell_segment;
+pub mod inkwell_wcet;
 
 pub use actor::{Actor, ActorConfig, ActorSystem};
 pub use config::{
     ActorConfigEntry, ActorConfigLoader, ActorSystemConfig, SchedulingPolicy, VeecleActor,
     VeecleMetadata, VeecleModel, VeecleService,
 };
-pub use detector::{AsyncDetector, AsyncFunctionInfo, DetectionMethod, StateBlock};
-pub use inkwell_detector::InkwellAsyncDetector;
-pub use segment::{ActorSegment, SegmentExtractor, SegmentType};
-pub use wcet::{SegmentWCET, SegmentWCETAnalyzer};
+pub use inkwell_detector::{AsyncFunctionInfo, DetectionMethod, InkwellAsyncDetector, StateBlock};
+pub use inkwell_segment::{ActorSegment, InkwellSegmentExtractor, SegmentType};
+pub use inkwell_wcet::{InkwellSegmentWCETAnalyzer, SegmentWCET};

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use lale::{
     AnalysisReport, CortexA53Model, CortexA7Model, CortexM0Model, CortexM33Model, CortexM3Model,
-    CortexM4Model, CortexM7Model, CortexR4Model, CortexR5Model, IRParser, PlatformModel,
-    RV32GCModel, RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy, Task, WCETAnalyzer,
+    CortexM4Model, CortexM7Model, CortexR4Model, CortexR5Model, InkwellParser, PlatformModel,
+    RV32GCModel, RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy, Task,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -280,69 +280,38 @@ fn find_ll_files(dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(ll_files)
 }
 
-/// Perform complete WCET analysis
+/// Perform complete WCET analysis using the new DirectoryAnalyzer
 pub fn analyze_directory(config: AnalysisConfig) -> Result<AnalysisReport> {
-    let dir = PathBuf::from(&config.dir_path);
-
-    // Find all .ll files
-    let ll_files = find_ll_files(&dir)
-        .with_context(|| format!("Failed to find LLVM IR files in {}", config.dir_path))?;
-
-    if ll_files.is_empty() {
-        anyhow::bail!("No .ll files found in directory: {}", config.dir_path);
-    }
+    use lale::DirectoryAnalyzer;
 
     // Select platform
     let platform = select_platform(&config.platform)?;
-    let analyzer = WCETAnalyzer::new(platform);
 
-    // Parse all modules and analyze WCET
-    let mut all_wcet_results = ahash::AHashMap::new();
-    for ll_file in &ll_files {
-        let module = IRParser::parse_file(ll_file.to_str().unwrap())
-            .with_context(|| format!("Failed to parse {}", ll_file.display()))?;
+    // Create analyzer
+    let analyzer = DirectoryAnalyzer::new(platform.clone());
 
-        let results = analyzer.analyze_module(&module);
-        all_wcet_results.extend(results);
-    }
-
-    if all_wcet_results.is_empty() {
-        anyhow::bail!("No functions analyzed");
-    }
-
-    // Build tasks
-    let tasks: Vec<Task> = if config.auto_tasks {
-        // Auto-generate tasks from all functions
-        // Sort by function name for deterministic ordering
-        let mut sorted_results: Vec<_> = all_wcet_results.iter().collect();
-        sorted_results.sort_by_key(|(func_name, _)| func_name.as_str());
-
-        sorted_results
-            .into_iter()
-            .enumerate()
-            .map(|(idx, (func_name, &wcet_cycles))| {
-                let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
-                Task {
-                    name: func_name.clone(), // Use function name as task name for determinism
-                    function: func_name.clone(),
-                    wcet_cycles,
-                    wcet_us,
-                    period_us: Some(config.auto_period_us),
-                    deadline_us: Some(config.auto_period_us),
-                    priority: None, // Let RMA assign priorities
-                    preemptible: true,
-                    dependencies: vec![],
-                }
-            })
-            .collect()
+    // Analyze directory
+    let result = if config.auto_tasks {
+        analyzer
+            .analyze_with_period(&config.dir_path, config.auto_period_us)
+            .map_err(|e| anyhow::anyhow!("Analysis failed: {}", e))?
     } else {
-        // Use configured tasks
+        analyzer
+            .analyze_directory(&config.dir_path)
+            .map_err(|e| anyhow::anyhow!("Analysis failed: {}", e))?
+    };
+
+    // Use configured tasks if provided, otherwise use auto-generated tasks
+    let mut tasks = if config.auto_tasks {
+        result.tasks
+    } else {
+        // Filter to only configured tasks
         config
             .tasks
             .iter()
             .filter_map(|tc| {
-                let wcet_cycles = all_wcet_results.get(&tc.function).copied()?;
-                let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
+                let wcet_cycles = result.function_wcets.get(&tc.function).copied()?;
+                let wcet_us = wcet_cycles as f64 / platform.cpu_frequency_mhz as f64;
 
                 Some(Task {
                     name: tc.name.clone(),
@@ -360,7 +329,7 @@ pub fn analyze_directory(config: AnalysisConfig) -> Result<AnalysisReport> {
     };
 
     if tasks.is_empty() {
-        anyhow::bail!("No valid tasks configured");
+        anyhow::bail!("No valid tasks configured or found");
     }
 
     // Parse scheduling policy
@@ -370,12 +339,72 @@ pub fn analyze_directory(config: AnalysisConfig) -> Result<AnalysisReport> {
         _ => SchedulingPolicy::RMA,
     };
 
-    // Generate schedule
-    let first_module = IRParser::parse_file(ll_files[0].to_str().unwrap())?;
-    let json = analyzer.analyze_and_export_schedule(&first_module, tasks, policy)?;
+    // Generate schedule using RMA or EDF
+    let schedulability = match policy {
+        SchedulingPolicy::RMA => lale::scheduling::RMAScheduler::schedulability_test(&tasks),
+        SchedulingPolicy::EDF => lale::scheduling::EDFScheduler::schedulability_test(&tasks),
+    };
 
-    // Parse back to AnalysisReport
-    let report: AnalysisReport = serde_json::from_str(&json)?;
+    // Create analysis report with proper structure
+    use chrono::Utc;
+    use lale::output::json::{
+        AnalysisInfo, FunctionWCET, SchedulabilityAnalysis, TaskModel, WCETAnalysis,
+    };
+
+    let analysis_info = AnalysisInfo {
+        tool: "lale".to_string(),
+        version: lale::VERSION.to_string(),
+        timestamp: Utc::now().to_rfc3339(),
+        platform: platform.name.clone(),
+    };
+
+    let wcet_analysis = WCETAnalysis {
+        functions: result
+            .function_wcets
+            .iter()
+            .map(|(name, &wcet)| FunctionWCET {
+                name: name.clone(),
+                llvm_name: name.clone(),
+                wcet_cycles: wcet,
+                wcet_us: wcet as f64 / platform.cpu_frequency_mhz as f64,
+                bcet_cycles: wcet, // Conservative estimate
+                bcet_us: wcet as f64 / platform.cpu_frequency_mhz as f64,
+                loop_count: 0,
+            })
+            .collect(),
+    };
+
+    let task_model = TaskModel {
+        tasks: tasks.clone(),
+    };
+
+    // Calculate utilization
+    let utilization = tasks
+        .iter()
+        .filter(|t| t.period_us.is_some())
+        .map(|t| t.wcet_us / t.period_us.unwrap())
+        .sum();
+
+    let schedulability_analysis = SchedulabilityAnalysis {
+        method: format!("{:?}", policy),
+        result: match schedulability {
+            lale::scheduling::SchedulabilityResult::Schedulable => "Schedulable".to_string(),
+            lale::scheduling::SchedulabilityResult::Unschedulable { .. } => {
+                "Not Schedulable".to_string()
+            }
+        },
+        utilization,
+        utilization_bound: Some(1.0),
+        response_times: ahash::AHashMap::new(),
+    };
+
+    let report = AnalysisReport {
+        analysis_info,
+        wcet_analysis,
+        task_model,
+        schedulability: schedulability_analysis,
+        schedule: None,
+    };
 
     Ok(report)
 }

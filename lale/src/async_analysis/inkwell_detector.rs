@@ -10,8 +10,35 @@ use inkwell::values::{FunctionValue, InstructionOpcode};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use super::detector::{AsyncFunctionInfo, DetectionMethod, StateBlock};
 use crate::ir::inkwell_parser::{InkwellFunction, InkwellParser, TerminatorKind};
+
+/// Information about detected async function
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AsyncFunctionInfo {
+    pub function_name: String,
+    pub is_async: bool,
+    pub confidence_score: u8,
+    pub state_discriminant_ptr: Option<String>,
+    pub state_blocks: Vec<StateBlock>,
+    pub detection_method: DetectionMethod,
+}
+
+/// State block in async state machine
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateBlock {
+    pub state_id: u32,
+    pub entry_block: String,
+    pub reachable_blocks: Vec<String>,
+}
+
+/// Detection method
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DetectionMethod {
+    GeneratorType,
+    DiscriminantSwitch,
+    AsyncSignature,
+    Combined(Vec<DetectionMethod>),
+}
 
 /// Inkwell-based async detector for LLVM 18+
 pub struct InkwellAsyncDetector;
@@ -209,6 +236,11 @@ impl InkwellAsyncDetector {
 
         false
     }
+}
+
+/// Analyze async functions in LLVM IR file
+pub fn analyze_async_functions(ir_file_path: &str) -> Result<Vec<AsyncFunctionInfo>, String> {
+    InkwellAsyncDetector::detect_from_file(ir_file_path).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

@@ -231,8 +231,8 @@ pub async fn analyze_multicore(
     platform: String,
 ) -> Result<lale::MultiCoreResult, String> {
     use lale::{
-        Actor, ActorConfigLoader, IRParser, InkwellAsyncDetector, MultiCoreScheduler,
-        SchedulingPolicy, SegmentExtractor, SegmentWCETAnalyzer,
+        Actor, ActorConfigLoader, InkwellAsyncDetector, InkwellParser, InkwellSegmentExtractor,
+        InkwellSegmentWCETAnalyzer, MultiCoreScheduler, SchedulingPolicy,
     };
     use std::path::{Path, PathBuf};
 
@@ -261,48 +261,75 @@ pub async fn analyze_multicore(
     // Scan IR directory for actors
     let ir_path = Path::new(&ir_directory);
     let mut actors = Vec::new();
+    let mut parse_errors = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(ir_path) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("ll") {
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+
                 // Detect async functions
-                if let Ok(async_funcs) = InkwellAsyncDetector::detect_from_file(&path) {
-                    for async_info in async_funcs {
-                        // Parse module
-                        if let Ok(module) = IRParser::parse_file(&path) {
-                            if let Some(function) = module
-                                .functions
-                                .iter()
-                                .find(|f| f.name.to_string() == async_info.function_name)
-                            {
-                                // Extract segments
-                                let segments =
-                                    SegmentExtractor::extract_segments(function, &async_info);
+                match InkwellAsyncDetector::detect_from_file(&path) {
+                    Ok(async_funcs) => {
+                        for async_info in async_funcs {
+                            // Parse module
+                            match InkwellParser::parse_file(&path) {
+                                Ok((_context, module)) => {
+                                    if let Some(function) =
+                                        module.get_function(&async_info.function_name)
+                                    {
+                                        // Extract segments
+                                        let segments = InkwellSegmentExtractor::extract_segments(
+                                            &function,
+                                            &async_info,
+                                        );
 
-                                // Analyze WCET
-                                let analyzer = SegmentWCETAnalyzer::new(platform_model.clone());
-                                let wcets = analyzer.analyze_segments(function, &segments);
+                                        // Analyze WCET
+                                        let analyzer =
+                                            InkwellSegmentWCETAnalyzer::new(platform_model.clone());
+                                        let wcets = analyzer.analyze_segments(&function, &segments);
 
-                                // Create actor
-                                let mut actor = Actor::new(
-                                    async_info.function_name.clone(),
-                                    async_info.function_name.clone(),
-                                    10,
-                                    100.0,
-                                    Some(50.0),
-                                    Some(actors.len() % num_cores),
-                                );
+                                        // Create actor
+                                        let mut actor = Actor::new(
+                                            async_info.function_name.clone(),
+                                            async_info.function_name.clone(),
+                                            10,
+                                            100.0,
+                                            Some(50.0),
+                                            Some(actors.len() % num_cores),
+                                        );
 
-                                actor.segments = segments;
-                                actor.segment_wcets = wcets
-                                    .into_iter()
-                                    .map(|(id, w)| (id, w.wcet_cycles))
-                                    .collect();
-                                actor.compute_actor_wcet(platform_model.cpu_frequency_mhz);
+                                        actor.segments = segments;
+                                        actor.segment_wcets = wcets
+                                            .into_iter()
+                                            .map(|(id, w)| (id as u32, w.wcet_cycles))
+                                            .collect();
+                                        actor.compute_actor_wcet(platform_model.cpu_frequency_mhz);
 
-                                actors.push(actor);
+                                        actors.push(actor);
+                                    }
+                                }
+                                Err(e) => {
+                                    parse_errors.push(ParseError {
+                                        file: file_name.clone(),
+                                        error: format!("Failed to parse LLVM IR: {}", e),
+                                    });
+                                }
                             }
+                        }
+                    }
+                    Err(e) => {
+                        // Only log non-debug-intrinsic errors
+                        if !e.contains("dbg_value") && !e.contains("dbg_declare") {
+                            parse_errors.push(ParseError {
+                                file: file_name,
+                                error: format!("Failed to detect async functions: {}", e),
+                            });
                         }
                     }
                 }
@@ -313,6 +340,14 @@ pub async fn analyze_multicore(
     // Perform multicore analysis
     let scheduler = MultiCoreScheduler::new(num_cores, scheduling_policy);
     let result = scheduler.analyze(&actors);
+
+    // Log parse errors if any
+    if !parse_errors.is_empty() {
+        eprintln!("Parse errors encountered during analysis:");
+        for error in &parse_errors {
+            eprintln!("  - {}: {}", error.file, error.error);
+        }
+    }
 
     Ok(result)
 }
@@ -379,12 +414,7 @@ pub async fn analyze_veecle_project(
     // Run analysis in blocking task to avoid blocking the GUI
     eprintln!("Starting project analysis in background...");
     let result = tokio::task::spawn_blocking(move || {
-        analyzer.analyze_veecle_project(
-            &project_dir,
-            &ir_directory,
-            num_cores,
-            scheduling_policy,
-        )
+        analyzer.analyze_veecle_project(&project_dir, &ir_directory, num_cores, scheduling_policy)
     })
     .await
     .map_err(|e| format!("Analysis task failed: {}", e))??;
@@ -399,7 +429,7 @@ pub async fn analyze_veecle_project(
     Ok(VeecleProjectResult {
         actors,
         schedulability,
-        parse_errors: vec![], // TODO: Collect parse errors from analysis
+        parse_errors: vec![], // Parse errors are collected in ActorAnalyzer internally
     })
 }
 

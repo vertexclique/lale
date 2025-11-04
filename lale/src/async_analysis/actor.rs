@@ -2,7 +2,7 @@
 //!
 //! Represents actors with timing constraints and WCET analysis results.
 
-use crate::async_analysis::segment::ActorSegment;
+use crate::async_analysis::inkwell_segment::ActorSegment;
 use crate::scheduling::Task;
 use ahash::AHashMap;
 use serde::{Deserialize, Serialize};

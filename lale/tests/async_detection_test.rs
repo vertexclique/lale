@@ -2,8 +2,7 @@
 //!
 //! Tests async detection against real Veecle OS compiled binaries
 
-use lale::async_analysis::AsyncDetector;
-use lale::ir::IRParser;
+use lale::InkwellAsyncDetector;
 
 #[test]
 fn test_detect_veecle_actors() {
@@ -25,18 +24,14 @@ fn test_detect_veecle_actors() {
 
         println!("\n=== Testing: {} ===", file_path);
 
-        // Parse LLVM IR - newer LLVM syntax may not be supported
-        let module = match IRParser::parse_file(file_path) {
-            Ok(m) => m,
+        // Detect async functions using inkwell
+        let async_funcs = match InkwellAsyncDetector::detect_from_file(file_path) {
+            Ok(funcs) => funcs,
             Err(e) => {
-                eprintln!("⚠ Cannot parse (newer LLVM syntax): {}", e);
-                eprintln!("  This is expected - llvm-ir crate doesn't support LLVM 18+ syntax");
+                eprintln!("⚠ Cannot parse: {}", e);
                 continue;
             }
         };
-
-        // Detect async functions
-        let async_funcs = AsyncDetector::detect_all(&module);
 
         println!("✓ Parsed successfully");
         println!("Found {} async functions", async_funcs.len());
@@ -94,15 +89,13 @@ fn test_state_machine_validation() {
         return;
     }
 
-    let module = match IRParser::parse_file(file_path) {
-        Ok(m) => m,
+    let async_funcs = match InkwellAsyncDetector::detect_from_file(file_path) {
+        Ok(funcs) => funcs,
         Err(_) => {
-            eprintln!("⚠ Cannot parse - newer LLVM syntax not supported by llvm-ir crate");
+            eprintln!("⚠ Cannot parse file");
             return;
         }
     };
-
-    let async_funcs = AsyncDetector::detect_all(&module);
 
     for func_info in async_funcs.iter() {
         if func_info.state_blocks.len() >= 3 {
@@ -138,23 +131,19 @@ fn test_futures_util_detection() {
         return;
     }
 
-    let module = match IRParser::parse_file(file_path) {
-        Ok(m) => m,
+    let async_funcs = match InkwellAsyncDetector::detect_from_file(file_path) {
+        Ok(funcs) => funcs,
         Err(_) => {
-            eprintln!("⚠ Cannot parse - newer LLVM syntax not supported by llvm-ir crate");
+            eprintln!("⚠ Cannot parse file");
             return;
         }
     };
 
-    // Test individual function detection
-    for function in module.functions.iter().take(10) {
-        let info = AsyncDetector::detect(function);
-
-        if info.is_async {
-            println!(
-                "Detected async: {} (confidence: {})",
-                function.name, info.confidence_score
-            );
-        }
+    // Display detected functions
+    for (i, info) in async_funcs.iter().take(10).enumerate() {
+        println!(
+            "Detected async {}: {} (confidence: {})",
+            i, info.function_name, info.confidence_score
+        );
     }
 }

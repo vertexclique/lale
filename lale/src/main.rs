@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
+use lale::analysis::InkwellTimingCalculator;
 use lale::{
     CortexA53Model, CortexA7Model, CortexM0Model, CortexM33Model, CortexM3Model, CortexM4Model,
-    CortexM7Model, CortexR4Model, CortexR5Model, IRParser, PlatformModel, RV32GCModel,
-    RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy, Task, WCETAnalyzer,
+    CortexM7Model, CortexR4Model, CortexR5Model, InkwellParser, PlatformModel, RV32GCModel,
+    RV32IMACModel, RV32IModel, RV64GCModel, SchedulingPolicy,
 };
 use std::path::PathBuf;
 
@@ -64,32 +65,15 @@ fn main() -> Result<()> {
 
 #[derive(Debug)]
 struct Config {
-    platform: Option<String>, // Legacy platform name
-    board: Option<String>,    // New board config path
-    policy: SchedulingPolicy,
+    platform: Option<String>,
+    board: Option<String>,
     output: PathBuf,
-    tasks: Vec<TaskConfig>,
-    auto_tasks: bool,
-    auto_period_us: f64,
-}
-
-#[derive(Debug, Clone)]
-struct TaskConfig {
-    name: String,
-    function: String,
-    period_us: f64,
-    deadline_us: Option<f64>,
-    priority: Option<u8>,
 }
 
 fn parse_config(args: &[String]) -> Result<Config> {
     let mut platform: Option<String> = None;
     let mut board: Option<String> = None;
-    let mut policy = SchedulingPolicy::RMA;
-    let mut output = PathBuf::from("schedule.json");
-    let mut tasks = Vec::new();
-    let mut auto_tasks = false;
-    let mut auto_period_us = 10000.0;
+    let mut output = PathBuf::from("wcet_results.json");
 
     let mut i = 0;
     while i < args.len() {
@@ -106,48 +90,10 @@ fn parse_config(args: &[String]) -> Result<Config> {
                     board = Some(args[i].clone());
                 }
             }
-            "--policy" => {
-                i += 1;
-                if i < args.len() {
-                    policy = match args[i].as_str() {
-                        "rma" | "RMA" => SchedulingPolicy::RMA,
-                        "edf" | "EDF" => SchedulingPolicy::EDF,
-                        _ => {
-                            eprintln!("Warning: Unknown policy '{}', using RMA", args[i]);
-                            SchedulingPolicy::RMA
-                        }
-                    };
-                }
-            }
             "--output" | "-o" => {
                 i += 1;
                 if i < args.len() {
                     output = PathBuf::from(&args[i]);
-                }
-            }
-            "--task" | "-t" => {
-                // Format: --task name:function:period_us[:deadline_us[:priority]]
-                i += 1;
-                if i < args.len() {
-                    if let Some(task) = parse_task(&args[i]) {
-                        tasks.push(task);
-                    }
-                }
-            }
-            "--auto-tasks" => {
-                auto_tasks = true;
-            }
-            "--auto-period" => {
-                i += 1;
-                if i < args.len() {
-                    if let Ok(period) = args[i].parse::<f64>() {
-                        auto_period_us = period;
-                    } else {
-                        eprintln!(
-                            "Warning: Invalid period '{}', using default 10000us",
-                            args[i]
-                        );
-                    }
                 }
             }
             _ => {
@@ -157,39 +103,12 @@ fn parse_config(args: &[String]) -> Result<Config> {
         i += 1;
     }
 
-    // Default to cortex-m4 if neither platform nor board specified
     let final_platform = platform.or(Some("cortex-m4".to_string()));
 
     Ok(Config {
         platform: final_platform,
         board,
-        policy,
         output,
-        tasks,
-        auto_tasks,
-        auto_period_us,
-    })
-}
-
-fn parse_task(spec: &str) -> Option<TaskConfig> {
-    let parts: Vec<&str> = spec.split(':').collect();
-    if parts.len() < 3 {
-        eprintln!("Warning: Invalid task spec '{}', expected name:function:period_us[:deadline_us[:priority]]", spec);
-        return None;
-    }
-
-    let name = parts[0].to_string();
-    let function = parts[1].to_string();
-    let period_us = parts[2].parse::<f64>().ok()?;
-    let deadline_us = parts.get(3).and_then(|s| s.parse::<f64>().ok());
-    let priority = parts.get(4).and_then(|s| s.parse::<u8>().ok());
-
-    Some(TaskConfig {
-        name,
-        function,
-        period_us,
-        deadline_us,
-        priority,
     })
 }
 
@@ -219,8 +138,8 @@ fn select_platform(name: &str) -> Result<PlatformModel> {
 }
 
 fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
-    println!("LALE - LLVM-based WCET Analysis and Static Scheduling");
-    println!("======================================================");
+    println!("LALE - LLVM-based WCET Analysis (Inkwell)");
+    println!("==========================================");
     println!();
     println!("Configuration:");
     println!("  Directory: {}", dir.display());
@@ -231,9 +150,7 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
         println!("  Platform: {}", platform);
     }
 
-    println!("  Policy: {:?}", config.policy);
     println!("  Output: {}", config.output.display());
-    println!("  Tasks: {} configured", config.tasks.len());
     println!();
 
     // Find all .ll files in directory
@@ -245,125 +162,83 @@ fn analyze_directory(dir: PathBuf, config: Config) -> Result<()> {
     println!("Found {} LLVM IR file(s)", ll_files.len());
     println!();
 
-    // Select platform - use platform if specified, otherwise default
+    // Select platform
     let platform_name = config
         .platform
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("No platform specified"))?;
     let platform = select_platform(platform_name)?;
-    let analyzer = WCETAnalyzer::new(platform);
 
-    // Parse all modules
-    let mut all_wcet_results = ahash::AHashMap::new();
+    // Parse all modules and analyze
+    let mut all_results = Vec::new();
+
     for ll_file in &ll_files {
         println!("Analyzing: {}", ll_file.display());
-        match IRParser::parse_file(ll_file.to_str().unwrap()) {
-            Ok(module) => {
-                let results = analyzer.analyze_module(&module);
-                println!("  Found {} functions", results.len());
-                all_wcet_results.extend(results);
+        match InkwellParser::parse_file(ll_file) {
+            Ok((_context, module)) => {
+                let mut file_results = Vec::new();
+
+                // Iterate through all functions
+                for function in module.get_functions() {
+                    let func_name = function
+                        .get_name()
+                        .to_str()
+                        .unwrap_or("unknown")
+                        .to_string();
+
+                    // Skip intrinsics and declarations
+                    if func_name.starts_with("llvm.") || function.count_basic_blocks() == 0 {
+                        continue;
+                    }
+
+                    // Build CFG and calculate timing
+                    let cfg = lale::InkwellCFG::from_function(&function);
+                    let timings = InkwellTimingCalculator::calculate_block_timings(
+                        &function, &cfg, &platform,
+                    );
+
+                    // Sum up all block timings for a simple WCET estimate
+                    let total_cycles: u64 = timings.values().sum();
+                    let wcet_us = total_cycles as f64 / platform.cpu_frequency_mhz as f64;
+
+                    file_results.push((func_name.clone(), total_cycles, wcet_us));
+                    println!(
+                        "  {} : {} cycles ({:.2} us)",
+                        func_name, total_cycles, wcet_us
+                    );
+                }
+
+                all_results.extend(file_results);
             }
             Err(e) => {
                 eprintln!("  Warning: Failed to parse {}: {}", ll_file.display(), e);
             }
         }
-    }
-
-    println!();
-    println!("Total functions analyzed: {}", all_wcet_results.len());
-    println!();
-
-    // Build tasks from config or auto-generate
-    let tasks: Vec<Task> = if config.auto_tasks {
-        println!("Auto-generating tasks from all analyzed functions...");
-        println!("  Default period: {:.2}us", config.auto_period_us);
         println!();
-
-        all_wcet_results
-            .iter()
-            .enumerate()
-            .map(|(idx, (func_name, &wcet_cycles))| {
-                let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
-                let period_us = config.auto_period_us;
-
-                Task {
-                    name: format!("task_{}", idx),
-                    function: func_name.clone(),
-                    wcet_cycles,
-                    wcet_us,
-                    period_us: Some(period_us),
-                    deadline_us: Some(period_us),
-                    priority: Some(idx as u8),
-                    preemptible: true,
-                    dependencies: vec![],
-                }
-            })
-            .collect()
-    } else {
-        config
-            .tasks
-            .iter()
-            .filter_map(|tc| {
-                let wcet_cycles = all_wcet_results.get(&tc.function).copied();
-                if wcet_cycles.is_none() {
-                    eprintln!(
-                        "Warning: Function '{}' not found in WCET results, skipping task '{}'",
-                        tc.function, tc.name
-                    );
-                    return None;
-                }
-
-                let wcet_cycles = wcet_cycles.unwrap();
-                let wcet_us = wcet_cycles as f64 / analyzer.platform.cpu_frequency_mhz as f64;
-
-                Some(Task {
-                    name: tc.name.clone(),
-                    function: tc.function.clone(),
-                    wcet_cycles,
-                    wcet_us,
-                    period_us: Some(tc.period_us),
-                    deadline_us: tc.deadline_us.or(Some(tc.period_us)),
-                    priority: tc.priority,
-                    preemptible: true,
-                    dependencies: vec![],
-                })
-            })
-            .collect()
-    };
-
-    if tasks.is_empty() {
-        anyhow::bail!("No valid tasks configured. Use --task to specify tasks or --auto-tasks.");
     }
 
-    println!("Tasks:");
-    for task in &tasks {
-        println!(
-            "  {} ({}): WCET={:.2}us, Period={:.2}us",
-            task.name,
-            task.function,
-            task.wcet_us,
-            task.period_us.unwrap_or(0.0)
-        );
-    }
+    println!("Total functions analyzed: {}", all_results.len());
     println!();
 
-    // Perform analysis and export
-    println!("Performing schedulability analysis...");
+    // Export results to JSON
+    let json_output = serde_json::json!({
+        "platform": platform_name,
+        "cpu_frequency_mhz": platform.cpu_frequency_mhz,
+        "functions": all_results.iter().map(|(name, cycles, us)| {
+            serde_json::json!({
+                "name": name,
+                "wcet_cycles": cycles,
+                "wcet_us": us
+            })
+        }).collect::<Vec<_>>()
+    });
 
-    // We need to parse at least one module for the export
-    let first_module = IRParser::parse_file(ll_files[0].to_str().unwrap())
-        .context("Failed to parse first module")?;
-
-    let json = analyzer
-        .analyze_and_export_schedule(&first_module, tasks, config.policy)
-        .context("Failed to generate schedule")?;
-
-    // Write to file
-    std::fs::write(&config.output, &json)
+    let json_str = serde_json::to_string_pretty(&json_output)?;
+    std::fs::write(&config.output, &json_str)
         .with_context(|| format!("Failed to write to {}", config.output.display()))?;
 
     println!("✓ Analysis complete!");
-    println!("✓ Schedule exported to: {}", config.output.display());
+    println!("✓ Results exported to: {}", config.output.display());
 
     Ok(())
 }
@@ -390,7 +265,6 @@ fn find_ll_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
                 }
             }
         } else if path.is_dir() {
-            // Recursively search subdirectories
             ll_files.extend(find_ll_files(&path)?);
         }
     }
@@ -415,7 +289,6 @@ fn list_boards() -> Result<()> {
                 return Ok(());
             }
 
-            // Group by category
             let mut cores = Vec::new();
             let mut platforms_list = Vec::new();
 
@@ -537,27 +410,14 @@ fn export_board(board_name: &str) -> Result<()> {
 }
 
 fn print_usage() {
-    println!("LALE - LLVM-based WCET Analysis and Static Scheduling");
+    println!("LALE - LLVM-based WCET Analysis (Inkwell)");
     println!();
     println!("USAGE:");
     println!("    lale analyze <directory> [OPTIONS]");
     println!();
     println!("OPTIONS:");
     println!("    --platform, -p <platform>    Target platform (default: cortex-m4)");
-    println!("    --policy <policy>            Scheduling policy: rma, edf (default: rma)");
-    println!("    --output, -o <file>          Output file (default: schedule.json)");
-    println!("    --task, -t <spec>            Task specification (can be repeated)");
-    println!("    --auto-tasks                 Auto-generate tasks from all functions");
-    println!("    --auto-period <us>           Period for auto-generated tasks (default: 10000us)");
-    println!();
-    println!("TASK SPECIFICATION:");
-    println!("    Format: name:function:period_us[:deadline_us[:priority]]");
-    println!("    Example: --task sensor:read_sensor:10000:8000:1");
-    println!();
-    println!("AUTO-TASK MODE:");
-    println!("    Use --auto-tasks to automatically create a task for every analyzed function.");
-    println!("    All tasks will have the same period (configurable with --auto-period).");
-    println!("    Priorities are assigned based on function order (0 = highest).");
+    println!("    --output, -o <file>          Output file (default: wcet_results.json)");
     println!();
     println!("AVAILABLE PLATFORMS:");
     println!("    ARM Cortex-M:");
@@ -582,30 +442,13 @@ fn print_usage() {
     println!("      rv64gc             - RV64GC @ 1500MHz");
     println!();
     println!("EXAMPLES:");
-    println!("    # Manual task specification:");
-    println!("    lale analyze ./data/armv7e-m \\");
-    println!("        --platform cortex-m4 \\");
-    println!("        --policy rma \\");
-    println!("        --output schedule.json \\");
-    println!("        --task sensor:read_sensor:10000:8000:1 \\");
-    println!("        --task control:control_loop:5000:4500:0");
-    println!();
-    println!("    # Auto-generate tasks from all functions:");
-    println!("    lale analyze ./data/armv7e-m \\");
-    println!("        --platform cortex-m4 \\");
-    println!("        --auto-tasks \\");
-    println!("        --auto-period 10000 \\");
-    println!("        --output schedule.json");
+    println!("    lale analyze ./data/armv7e-m --platform cortex-m4");
+    println!("    lale analyze ./ir_files --platform cortex-m7 --output results.json");
     println!();
     println!("BOARD CONFIGURATION COMMANDS:");
     println!("    lale list-boards                List available board configurations");
     println!("    lale validate-board <name>      Validate a board configuration");
     println!("    lale export-board <name>        Export resolved board configuration");
-    println!();
-    println!("    Examples:");
-    println!("      lale list-boards");
-    println!("      lale validate-board platforms/stm32f746-discovery");
-    println!("      lale export-board platforms/stm32f746-discovery > my-board.toml");
     println!();
     println!("OTHER COMMANDS:");
     println!("    lale help              Show this help message");

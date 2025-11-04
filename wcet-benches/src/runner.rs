@@ -102,41 +102,37 @@ impl BenchmarkRunner {
         let flow_facts = source_path.and_then(|p| FlowFacts::parse_from_source(&p).ok());
 
         // Parse LLVM IR
-        let module =
-            lale::ir::parser::IRParser::parse_file(ir_path).context("Failed to parse LLVM IR")?;
+        let (_context, module) = lale::InkwellParser::parse_file(ir_path)
+            .map_err(|e| anyhow::anyhow!("Failed to parse LLVM IR: {}", e))?;
 
         // Find function to analyze
         let function = if let Some(ref facts) = flow_facts {
             if let Some(ref entry) = facts.entry_point {
                 // Use entry point from flow facts
                 module
-                    .functions
-                    .iter()
-                    .find(|f| f.name == *entry)
-                    .or_else(|| module.functions.iter().find(|f| f.name == "main"))
-                    .or_else(|| module.functions.first())
+                    .get_function(entry)
+                    .or_else(|| module.get_function("main"))
             } else {
-                module
-                    .functions
-                    .iter()
-                    .find(|f| f.name == "main")
-                    .or_else(|| module.functions.first())
+                module.get_function("main")
             }
         } else {
-            module
-                .functions
-                .iter()
-                .find(|f| f.name == "main")
-                .or_else(|| module.functions.first())
+            module.get_function("main")
         }
         .context("No functions found in module")?;
 
         // Build CFG
-        let cfg = lale::ir::cfg::CFG::from_function(function);
+        let cfg = lale::InkwellCFG::from_function(&function);
+
+        let block_count = cfg.blocks.len();
+        let edge_count = cfg
+            .blocks
+            .iter()
+            .map(|b| cfg.successors(b.id).len())
+            .sum::<usize>();
 
         let mut details = ResultDetails {
-            basic_blocks: cfg.block_count(),
-            cfg_edges: cfg.edge_count(),
+            basic_blocks: block_count,
+            cfg_edges: edge_count,
             accuracy: None,
             loop_bounds_found: flow_facts.as_ref().map(|f| f.loop_count()).unwrap_or(0),
             entry_point: flow_facts.as_ref().and_then(|f| f.entry_point.clone()),
@@ -145,11 +141,11 @@ impl BenchmarkRunner {
         // Calculate WCET estimate
         // If we have loop bounds, use them for better estimate
         let wcet = if let Some(ref facts) = flow_facts {
-            let base_cycles = cfg.block_count() as u64 * 10;
+            let base_cycles = block_count as u64 * 10;
             let loop_cycles = facts.max_total_iterations() as u64 * 5;
             base_cycles + loop_cycles
         } else {
-            cfg.block_count() as u64 * 10
+            block_count as u64 * 10
         };
 
         Ok((wcet, details))

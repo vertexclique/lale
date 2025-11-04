@@ -171,13 +171,34 @@ impl Compression for PreciseCompression {
 
 impl PreciseCompression {
     fn find_block_for_pc(&self, cfg: &CFG, pc: u64) -> Option<String> {
-        // Simplified: use PC as block identifier
-        // In practice, would map PC to actual basic block
+        // Map PC to basic block by finding block containing this address
+        // Blocks are ordered by address, find the one containing PC
+
+        let mut best_match: Option<(String, u64)> = None;
+
         for (label, &_node_idx) in &cfg.label_to_node {
-            // This is simplified - would need actual PC ranges
-            return Some(label.clone());
+            // Extract address from label if present
+            // Format: "bb.0x1000" or "entry.0x2000"
+            if let Some(addr_str) = label.rsplit('.').next() {
+                if let Some(addr_hex) = addr_str.strip_prefix("0x") {
+                    if let Ok(block_addr) = u64::from_str_radix(addr_hex, 16) {
+                        // Check if PC falls within this block's range
+                        if block_addr <= pc {
+                            // Keep track of closest block before PC
+                            match best_match {
+                                None => best_match = Some((label.clone(), block_addr)),
+                                Some((_, prev_addr)) if block_addr > prev_addr => {
+                                    best_match = Some((label.clone(), block_addr));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
         }
-        None
+
+        best_match.map(|(label, _)| label)
     }
 }
 
@@ -235,17 +256,50 @@ impl Compression for EfficientCompression {
 }
 
 impl EfficientCompression {
-    fn compute_worst_case_timing(&self, _aeg: &AEG, _src: NodeIndex, _dst: NodeIndex) -> u32 {
-        // Simplified: return conservative estimate
-        // In practice, would analyze all paths through AEG
-        100
+    fn compute_worst_case_timing(&self, aeg: &AEG, src: NodeIndex, dst: NodeIndex) -> u32 {
+        // Analyze all paths through AEG from src to dst
+        use std::collections::VecDeque;
+
+        let mut max_cycles = 0u32;
+        let mut queue = VecDeque::new();
+        queue.push_back((src, 0u32));
+
+        let mut visited = std::collections::HashSet::new();
+
+        while let Some((current, cycles)) = queue.pop_front() {
+            if current == dst {
+                max_cycles = max_cycles.max(cycles);
+                continue;
+            }
+
+            // Avoid infinite loops
+            if visited.contains(&current) {
+                continue;
+            }
+            visited.insert(current);
+
+            // Explore successors
+            use petgraph::visit::EdgeRef;
+            for edge_ref in aeg.graph.edges(current) {
+                let next = edge_ref.target();
+                let edge_cycles = edge_ref.weight().cycles;
+                queue.push_back((next, cycles + edge_cycles));
+            }
+        }
+
+        // Return max cycles found, or conservative estimate if no path
+        if max_cycles > 0 {
+            max_cycles
+        } else {
+            100 // Conservative fallback
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::parser::IRParser;
+    use crate::ir::InkwellParser;
 
     #[test]
     fn test_compressed_aeg_creation() {

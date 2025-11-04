@@ -14,9 +14,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/vertexclique/lale"
 
 [workspace.dependencies]
-# Shared dependencies across workspace members
-# Using LLVM 18 - highest version supported by both crates
-inkwell = { git = "https://github.com/TheDan64/inkwell.git", features = ["llvm19-1"] }
+inkwell = { git = "https://github.com/TheDan64/inkwell.git", features = ["llvm20-1"] }
 either = "1.15"
 petgraph = "0.8"
 serde = { version = "1.0", features = ["derive"] }

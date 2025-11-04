@@ -413,11 +413,33 @@ pub async fn analyze_veecle_project(
 
     // Run analysis in blocking task to avoid blocking the GUI
     eprintln!("Starting project analysis in background...");
-    let result = tokio::task::spawn_blocking(move || {
-        analyzer.analyze_veecle_project(&project_dir, &ir_directory, num_cores, scheduling_policy)
+
+    // Wrap in another layer to catch task panics
+    let result = match tokio::task::spawn_blocking(move || {
+        // Catch any panics in the entire analysis
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            analyzer.analyze_veecle_project(
+                &project_dir,
+                &ir_directory,
+                num_cores,
+                scheduling_policy,
+            )
+        }))
     })
     .await
-    .map_err(|e| format!("Analysis task failed: {}", e))??;
+    {
+        Ok(Ok(Ok(analysis_result))) => analysis_result,
+        Ok(Ok(Err(e))) => {
+            return Err(format!("Analysis failed: {}", e));
+        }
+        Ok(Err(panic_info)) => {
+            eprintln!("PANIC caught in analysis task: {:?}", panic_info);
+            return Err("Analysis panicked - this may be due to LLVM internal errors. Try with different LLVM IR files.".to_string());
+        }
+        Err(e) => {
+            return Err(format!("Task join error: {}", e));
+        }
+    };
 
     let (actors, schedulability) = result;
 

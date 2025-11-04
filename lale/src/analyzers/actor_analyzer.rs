@@ -95,15 +95,55 @@ impl ActorAnalyzer {
                 eprintln!("  Checking IR file: {}", path.display());
 
                 // Try to detect async functions in this file
-                match InkwellAsyncDetector::detect_from_file(&path) {
-                    Ok(async_funcs) => {
-                        if !async_funcs.is_empty() {
-                            eprintln!("    Found {} async functions", async_funcs.len());
-                        }
-                        for async_info in async_funcs {
-                            async_func_count += 1;
-                            eprintln!("      - {}", async_info.function_name);
+                eprintln!("    Attempting to detect async functions...");
+                let detection_result = std::panic::catch_unwind(|| {
+                    eprintln!("    Cartch unwind start.");
+                    let x = InkwellAsyncDetector::detect_from_file(&path);
+                    eprintln!("    Cartch unwind success.");
+                    x
+                });
 
+                let async_funcs = match detection_result {
+                    Ok(Ok(funcs)) => {
+                        eprintln!("    Detection succeeded");
+                        if !funcs.is_empty() {
+                            eprintln!("    Found {} async functions", funcs.len());
+                        }
+                        funcs
+                    }
+                    Ok(Err(e)) => {
+                        // Log parse errors for debugging
+                        if e.contains("dbg_value") || e.contains("dbg_declare") {
+                            eprintln!("    Skipping (debug intrinsics)");
+                        } else if e.contains("samesign") {
+                            eprintln!("    Skipping (LLVM 19+ syntax not supported by inkwell)");
+                            eprintln!(
+                                "    Note: Compile with LLVM 18 or earlier for full compatibility"
+                            );
+                        } else if e.contains("expected top-level entity") {
+                            eprintln!("    Skipping (malformed IR or unsupported syntax)");
+                        } else {
+                            eprintln!("    Parse error: {}", e);
+                        }
+                        eprintln!("    Continuing to next file...");
+                        continue;
+                    }
+                    Err(panic_info) => {
+                        eprintln!("    PANIC caught during detection: {:?}", panic_info);
+                        eprintln!("    Continuing to next file...");
+                        continue;
+                    }
+                };
+
+                eprintln!("    Processing {} detected functions...", async_funcs.len());
+
+                for async_info in async_funcs {
+                    eprintln!("      Processing function: {}", async_info.function_name);
+                    async_func_count += 1;
+
+                    // Wrap entire processing in panic catch
+                    let process_result =
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                             // Check if function matches actor path
                             if async_info.function_name.contains(function_path)
                                 || function_path.contains(&async_info.function_name)
@@ -120,8 +160,10 @@ impl ActorAnalyzer {
                                     Some(0),    // Default core
                                 );
 
+                                eprintln!("      Parsing LLVM IR with inkwell...");
                                 match InkwellParser::parse_file(&path) {
                                     Ok((_context, inkwell_module)) => {
+                                        eprintln!("      Parse successful");
                                         if let Some(inkwell_func) =
                                             inkwell_module.get_function(&async_info.function_name)
                                         {
@@ -147,9 +189,14 @@ impl ActorAnalyzer {
                                             actor.compute_actor_wcet(
                                                 self.platform.cpu_frequency_mhz,
                                             );
-                                            eprintln!("      ✓ WCET analysis completed");
+                                            eprintln!(
+                                                "      ✓ WCET analysis completed successfully"
+                                            );
                                         } else {
-                                            eprintln!("      ✗ Function not found in module");
+                                            eprintln!(
+                                                "      ✗ Function '{}' not found in module",
+                                                async_info.function_name
+                                            );
                                             actor.actor_wcet_cycles = 1000;
                                             actor.actor_wcet_us =
                                                 1000.0 / (self.platform.cpu_frequency_mhz as f64);
@@ -163,16 +210,26 @@ impl ActorAnalyzer {
                                     }
                                 }
 
-                                return Ok(actor);
+                                Some(actor)
+                            } else {
+                                None
                             }
+                        }));
+
+                    match process_result {
+                        Ok(Some(actor)) => {
+                            eprintln!("      Returning matched actor");
+                            return Ok(actor);
                         }
-                    }
-                    Err(e) => {
-                        // Silently skip files with parse errors (likely debug intrinsics)
-                        if e.contains("dbg_value") || e.contains("dbg_declare") {
-                            eprintln!("    Skipping (debug intrinsics)");
-                        } else {
-                            eprintln!("    Parse error: {}", e);
+                        Ok(None) => {
+                            // Function didn't match, continue
+                        }
+                        Err(panic_info) => {
+                            eprintln!(
+                                "      PANIC caught while processing function: {:?}",
+                                panic_info
+                            );
+                            eprintln!("      Continuing to next function...");
                         }
                     }
                 }

@@ -46,6 +46,35 @@ pub struct InkwellAsyncDetector;
 impl InkwellAsyncDetector {
     /// Detect async functions from LLVM IR file
     pub fn detect_from_file(path: impl AsRef<Path>) -> Result<Vec<AsyncFunctionInfo>, String> {
+        // Read file first to check if it's empty or has no functions
+        let ir_text = std::fs::read_to_string(path.as_ref())
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+
+        // Quick check: if file has no "define" keyword, it's empty
+        if !ir_text.contains("define ") {
+            // Empty module - return empty result instead of trying to parse
+            return Ok(Vec::new());
+        }
+
+        // Check for LLVM attributes that cause inkwell to abort/segfault
+        // These cannot be caught by Rust's panic handling
+        // Unfortunately this means most LLVM 20 IR files will be skipped
+        if ir_text.contains("noundef")
+            || ir_text.contains("dead_on_unwind")
+            || ir_text.contains("initializes(")
+        {
+            return Err("File contains LLVM attributes that cause inkwell to crash (abort/segfault). These cannot be caught by panic handlers. Recompile with older LLVM or wait for inkwell updates.".to_string());
+        }
+
+        // Skip very large files (>5000 lines) as they may cause memory issues
+        let line_count = ir_text.lines().count();
+        if line_count > 5000 {
+            return Err(format!(
+                "File too large ({} lines). Skipping to avoid potential crashes.",
+                line_count
+            ));
+        }
+
         let (_context, module) = InkwellParser::parse_file(path)?;
         Self::detect_from_module(&module)
     }
@@ -164,12 +193,21 @@ impl InkwellAsyncDetector {
         let mut states = Vec::new();
 
         // Get the parent basic block and then the parent function
-        let parent_bb = switch_instr
-            .get_parent()
-            .expect("Switch must have parent block");
-        let function = parent_bb
-            .get_parent()
-            .expect("Block must have parent function");
+        let parent_bb = match switch_instr.get_parent() {
+            Some(bb) => bb,
+            None => {
+                eprintln!("Warning: Switch instruction has no parent block");
+                return states;
+            }
+        };
+
+        let function = match parent_bb.get_parent() {
+            Some(f) => f,
+            None => {
+                eprintln!("Warning: Basic block has no parent function");
+                return states;
+            }
+        };
 
         // Get all basic blocks in the function
         let all_blocks: Vec<_> = function.get_basic_block_iter().collect();
